@@ -1,0 +1,27 @@
+__pycache__/
+*.pyc
+*.pyo
+.pytest_cache/
+*.egg-info/
+dist/
+build/
+
+# Database
+data/app.db
+
+# Generated outputs (regenerable)
+out/
+
+# Environment
+.env
+.venv/
+venv/
+
+# IDE
+.vscode/
+.idea/
+
+# Claude Flow tooling
+.claude-flow/
+.claude/
+.mcp.json
