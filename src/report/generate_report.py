@@ -7,6 +7,16 @@ import csv
 import json
 from pathlib import Path
 
+from src.analytics.sales_intel import (
+    brand_cross_sell,
+    buyer_profiles,
+    color_demand,
+    conversion_tracking,
+    inventory_recommendations,
+    monthly_seasonality,
+    size_demand,
+    unmet_demand,
+)
 from src.analytics.trends import (
     channel_breakdown,
     daily_volume,
@@ -60,6 +70,11 @@ def generate_insights_json(conn, item_scores: list[dict]) -> Path:
     missed_opps = top_items_by_intent(conn, "regret", 15)
     most_loved = top_items_by_intent(conn, "satisfaction", 15)
     trending = trending_items(conn, 20)
+    unmet = unmet_demand(conn, 3)
+    sizes = size_demand(conn)
+    colors = color_demand(conn)
+    cross = brand_cross_sell(conn, 10)
+    inv_recs = inventory_recommendations(conn)
 
     insights = {
         "top_requested": [
@@ -78,6 +93,25 @@ def generate_insights_json(conn, item_scores: list[dict]) -> Path:
             {"brand": r["brand"], "item": r["item"],
              "velocity": r["velocity"], "recent": r["recent_mentions"]}
             for r in trending
+        ],
+        "unmet_demand": [
+            {"brand": u["brand"], "item": u["item"],
+             "requests": u["requests"], "owned": u["owned"],
+             "demand_gap": u["demand_gap"]}
+            for u in unmet[:20]
+        ],
+        "size_demand": sizes[:15],
+        "color_demand": colors[:10],
+        "cross_sell_pairs": [
+            {"brand_a": c["brand_a"], "brand_b": c["brand_b"],
+             "shared_users": c["shared_users"]}
+            for c in cross[:15]
+        ],
+        "inventory_recommendations": [
+            {"brand": r["brand"], "item": r["item"],
+             "priority": r["priority"], "demand_gap": r["demand_gap"],
+             "notes": r["notes"]}
+            for r in inv_recs[:15]
         ],
     }
 
@@ -98,6 +132,16 @@ def generate_report_md(conn, item_scores: list[dict],
     missed_opps = top_items_by_intent(conn, "regret", 10)
     most_loved = top_items_by_intent(conn, "satisfaction", 10)
 
+    # Sales intelligence
+    unmet = unmet_demand(conn, 3)
+    profiles = buyer_profiles(conn, 20)
+    cross = brand_cross_sell(conn, 10)
+    sizes = size_demand(conn)
+    colors = color_demand(conn)
+    inv_recs = inventory_recommendations(conn)
+    seasonality = monthly_seasonality(conn)
+    conversions = conversion_tracking(conn)
+
     lines = [
         "# Demand Intelligence Report",
         "",
@@ -111,40 +155,133 @@ def generate_report_md(conn, item_scores: list[dict],
         "",
     ]
 
-    # Top 10 Requested Items
+    # ---------------------------------------------------------------
+    # SECTION 1: Top Requested
+    # ---------------------------------------------------------------
     lines += ["## Top 10 Most Requested Items", ""]
     lines.append("| # | Brand | Item | Request Count | Avg Score |")
     lines.append("|---|-------|------|---------------|-----------|")
     for i, r in enumerate(top_requested[:10], 1):
         lines.append(
-            f"| {i} | {r['brand'] or '—'} | {r['item'] or '—'} "
+            f"| {i} | {r['brand'] or '---'} | {r['item'] or '---'} "
             f"| {r['count']} | {r['avg_score']:.2f} |"
         )
     lines.append("")
 
-    # Missed Opportunities
-    lines += ["## Top Missed Opportunities (Regret Mentions)", ""]
-    lines.append("| # | Brand | Item | Regret Count | Avg Score |")
-    lines.append("|---|-------|------|--------------|-----------|")
-    for i, r in enumerate(missed_opps[:10], 1):
+    # ---------------------------------------------------------------
+    # SECTION 2: Top Brand+Item Combos (most actionable)
+    # ---------------------------------------------------------------
+    lines += ["## Top Brand + Item Combos Requested", ""]
+    lines.append("| # | Brand | Item | Requests | Owned | Demand Gap |")
+    lines.append("|---|-------|------|----------|-------|------------|")
+    brand_items = [u for u in unmet if u["brand"] != "Various" and u["item"] != "general"]
+    for i, u in enumerate(brand_items[:15], 1):
         lines.append(
-            f"| {i} | {r['brand'] or '—'} | {r['item'] or '—'} "
-            f"| {r['count']} | {r['avg_score']:.2f} |"
+            f"| {i} | {u['brand']} | {u['item']} "
+            f"| {u['requests']} | {u['owned']} | {u['demand_gap']} |"
         )
     lines.append("")
 
-    # Most Loved
-    lines += ["## Most Loved Items (Satisfaction Mentions)", ""]
+    # ---------------------------------------------------------------
+    # SECTION 3: Unmet Demand (stock these!)
+    # ---------------------------------------------------------------
+    lines += ["## Unmet Demand -- Items to Stock", "",
+              "*Items people are requesting but almost nobody owns yet.*", ""]
+    lines.append("| # | Brand | Item | Requests | Owned | Gap | Unique Users |")
+    lines.append("|---|-------|------|----------|-------|-----|--------------|")
+    for i, u in enumerate(unmet[:15], 1):
+        lines.append(
+            f"| {i} | {u['brand']} | {u['item']} "
+            f"| {u['requests']} | {u['owned']} | {u['demand_gap']} | {u['unique_requesters']} |"
+        )
+    lines.append("")
+
+    # ---------------------------------------------------------------
+    # SECTION 4: Inventory Recommendations
+    # ---------------------------------------------------------------
+    lines += ["## Inventory Recommendations", ""]
+    lines.append("| Priority | Brand | Item | Demand Gap | Notes |")
+    lines.append("|----------|-------|------|------------|-------|")
+    for r in inv_recs[:15]:
+        lines.append(
+            f"| **{r['priority']}** | {r['brand']} | {r['item']} "
+            f"| {r['demand_gap']} | {r['notes']} |"
+        )
+    lines.append("")
+
+    # ---------------------------------------------------------------
+    # SECTION 5: Size & Color Demand
+    # ---------------------------------------------------------------
+    lines += ["## Size Demand", ""]
+    lines.append("| Size | Total | Requests | Owned |")
+    lines.append("|------|-------|----------|-------|")
+    for s in sizes[:12]:
+        lines.append(f"| {s['size']} | {s['total']} | {s['requests']} | {s['owned']} |")
+    lines.append("")
+
+    lines += ["## Color Demand", ""]
+    lines.append("| Color | Total | Requests | Owned |")
+    lines.append("|-------|-------|----------|-------|")
+    for c in colors[:12]:
+        lines.append(f"| {c['color']} | {c['total']} | {c['requests']} | {c['owned']} |")
+    lines.append("")
+
+    # ---------------------------------------------------------------
+    # SECTION 6: Cross-Sell Pairs
+    # ---------------------------------------------------------------
+    lines += ["## Cross-Sell Opportunities", "",
+              "*Brands frequently discussed by the same users. If someone buys Brand A, "
+              "they likely want Brand B too.*", ""]
+    lines.append("| Brand A | Brand B | Shared Users |")
+    lines.append("|---------|---------|--------------|")
+    for c in cross[:15]:
+        lines.append(f"| {c['brand_a']} | {c['brand_b']} | {c['shared_users']} |")
+    lines.append("")
+
+    # ---------------------------------------------------------------
+    # SECTION 7: Top Buyer Profiles
+    # ---------------------------------------------------------------
+    lines += ["## Top Buyer Profiles", ""]
+    lines.append("| User | Segment | Requests | Owned | Buy Ratio | Top Brands |")
+    lines.append("|------|---------|----------|-------|-----------|------------|")
+    for p in profiles[:20]:
+        brand_str = ", ".join(b["brand"] for b in p["top_brands"][:3])
+        lines.append(
+            f"| {p['user']} | {p['segment']} | {p['requests']} "
+            f"| {p['owned']} | {p['buy_ratio']:.2f} | {brand_str} |"
+        )
+    lines.append("")
+
+    # ---------------------------------------------------------------
+    # SECTION 8: Conversions
+    # ---------------------------------------------------------------
+    lines += ["## Conversion Tracking (Request -> Purchase)", "",
+              "*Users who requested a brand and later showed ownership.*", ""]
+    lines.append("| User | Brand | Requested | Owned | Satisfied |")
+    lines.append("|------|-------|-----------|-------|-----------|")
+    for c in conversions[:15]:
+        lines.append(
+            f"| {c['author']} | {c['brand']} "
+            f"| {c['requests']} | {c['owned']} | {c['satisfied']} |"
+        )
+    lines.append("")
+
+    # ---------------------------------------------------------------
+    # SECTION 9: Most Loved / Satisfaction
+    # ---------------------------------------------------------------
+    lines += ["## Most Loved Items", ""]
     lines.append("| # | Brand | Item | Satisfaction Count | Avg Score |")
     lines.append("|---|-------|------|--------------------|-----------|")
     for i, r in enumerate(most_loved[:10], 1):
         lines.append(
-            f"| {i} | {r['brand'] or '—'} | {r['item'] or '—'} "
+            f"| {i} | {r['brand'] or '---'} | {r['item'] or '---'} "
             f"| {r['count']} | {r['avg_score']:.2f} |"
         )
     lines.append("")
 
-    # Trending Now
+    # ---------------------------------------------------------------
+    # SECTION 10: Trending Now
+    # ---------------------------------------------------------------
     lines += ["## Trending Now (Velocity-Based)", ""]
     lines.append("| # | Brand | Item | Recent | Previous | Velocity |")
     lines.append("|---|-------|------|--------|----------|----------|")
@@ -155,18 +292,35 @@ def generate_report_md(conn, item_scores: list[dict],
         )
     lines.append("")
 
-    # Top Brands
+    # ---------------------------------------------------------------
+    # SECTION 11: Top Brands
+    # ---------------------------------------------------------------
     lines += ["## Top Brands by Trend Score", ""]
     lines.append("| # | Brand | Mentions | Avg Intent | Trend Score |")
     lines.append("|---|-------|----------|------------|-------------|")
-    for i, b in enumerate(brand_scores[:15], 1):
+    for i, b in enumerate(brand_scores[:20], 1):
         lines.append(
             f"| {i} | {b['brand']} | {b['mentions']} "
             f"| {b['avg_intent']:.3f} | {b['trend_score']:.3f} |"
         )
     lines.append("")
 
-    # Channel Breakdown
+    # ---------------------------------------------------------------
+    # SECTION 12: Seasonality
+    # ---------------------------------------------------------------
+    lines += ["## Monthly Activity", ""]
+    lines.append("| Month | Total | Requests | Owned | Unique Users |")
+    lines.append("|-------|-------|----------|-------|--------------|")
+    for s in seasonality:
+        lines.append(
+            f"| {s['month']} | {s['total']} | {s['requests']} "
+            f"| {s['owned']} | {s['unique_users']} |"
+        )
+    lines.append("")
+
+    # ---------------------------------------------------------------
+    # SECTION 13: Channel Breakdown
+    # ---------------------------------------------------------------
     lines += ["## Channel Breakdown", ""]
     lines.append("| Channel | Total | Requests | Satisfaction | Regret | Ownership |")
     lines.append("|---------|-------|----------|-------------|--------|-----------|")
@@ -177,40 +331,44 @@ def generate_report_md(conn, item_scores: list[dict],
         )
     lines.append("")
 
-    # Key Insights
-    lines += [
-        "## Key Insights",
-        "",
-    ]
+    # ---------------------------------------------------------------
+    # Key Takeaways
+    # ---------------------------------------------------------------
+    lines += ["## Key Takeaways", ""]
 
-    if top_requested:
-        top = top_requested[0]
-        lines.append(
-            f"- **Highest demand:** {top['brand'] or 'Various'} {top['item'] or 'items'} "
-            f"with {top['count']} request mentions"
-        )
+    if brand_items:
+        top3 = brand_items[:3]
+        lines.append("**Top 3 items to stock immediately:**")
+        for t in top3:
+            lines.append(f"- {t['brand']} {t['item']} ({t['demand_gap']} unmet requests)")
+        lines.append("")
 
-    if missed_opps:
-        top = missed_opps[0]
-        lines.append(
-            f"- **Biggest missed opportunity:** {top['brand'] or 'Various'} {top['item'] or 'items'} "
-            f"— users regret not buying ({top['count']} mentions)"
-        )
+    if sizes:
+        top_sz = [s["size"] for s in sizes[:3]]
+        lines.append(f"**Most requested sizes:** {', '.join(top_sz)}")
+        lines.append("")
 
-    if most_loved:
-        top = most_loved[0]
-        lines.append(
-            f"- **Most loved:** {top['brand'] or 'Various'} {top['item'] or 'items'} "
-            f"with {top['count']} satisfaction mentions"
-        )
+    if colors:
+        top_cl = [c["color"] for c in colors[:3]]
+        lines.append(f"**Most requested colors:** {', '.join(top_cl)}")
+        lines.append("")
 
-    if brand_scores:
-        lines.append(
-            f"- **Most discussed brand:** {brand_scores[0]['brand']} "
-            f"({brand_scores[0]['mentions']} mentions)"
-        )
+    if cross:
+        lines.append("**Cross-sell insight:** customers who buy "
+                      f"{cross[0]['brand_a']} also want {cross[0]['brand_b']} "
+                      f"({cross[0]['shared_users']} users overlap)")
+        lines.append("")
 
-    lines.append("")
+    if profiles:
+        loyal = [p for p in profiles if p["segment"] == "loyal_buyer"]
+        prospects = [p for p in profiles if p["segment"] == "high_intent_prospect"]
+        if loyal:
+            lines.append(f"**Loyal buyers (high conversion):** "
+                          f"{', '.join(p['user'] for p in loyal[:5])}")
+        if prospects:
+            lines.append(f"**High-intent prospects (many requests, low purchases):** "
+                          f"{', '.join(p['user'] for p in prospects[:5])}")
+        lines.append("")
 
     with open(path, "w", encoding="utf-8") as f:
         f.write("\n".join(lines))
