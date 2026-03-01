@@ -1,0 +1,546 @@
+"""Build static HTML site for Cloudflare Pages deployment.
+
+Usage: python -m src.dashboard.build_static
+Output: dist/index.html, dist/assets/style.css
+
+Deploy: npx wrangler pages deploy dist --project-name=zr-itemfinder
+"""
+
+import json
+import shutil
+from html import escape
+from pathlib import Path
+
+import pandas as pd
+import plotly.express as px
+
+from src.analytics.sales_intel import (
+    brand_cross_sell, buyer_profiles, color_demand,
+    conversion_tracking, inventory_recommendations,
+    monthly_seasonality, size_demand, unmet_demand,
+)
+from src.analytics.trends import (
+    channel_breakdown, daily_volume, top_items_by_intent, trending_items,
+)
+from src.common.db import get_connection, processed_mention_count, raw_message_count
+from src.common.log_util import get_logger
+from src.process.scoring import compute_brand_scores, compute_item_scores
+
+log = get_logger("build")
+ROOT = Path(__file__).resolve().parent.parent.parent
+DIST = ROOT / "dist"
+ASSETS_SRC = Path(__file__).resolve().parent / "assets"
+
+C = {"blue": "#3b82f6", "green": "#22c55e", "red": "#ef4444",
+     "amber": "#f59e0b", "purple": "#8b5cf6", "cyan": "#06b6d4"}
+THEME = dict(
+    template="plotly_dark",
+    paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)",
+    font=dict(family="Inter, system-ui, sans-serif", color="#9aa0b2", size=12),
+    margin=dict(t=10, b=40, l=50, r=20),
+    legend=dict(bgcolor="rgba(0,0,0,0)", font=dict(size=11)),
+    xaxis=dict(gridcolor="#2d3044", zerolinecolor="#2d3044"),
+    yaxis=dict(gridcolor="#2d3044", zerolinecolor="#2d3044"),
+)
+
+
+def _load():
+    conn = get_connection()
+    d = dict(
+        raw=raw_message_count(conn), mentions=processed_mention_count(conn),
+        items=compute_item_scores(conn), brands=compute_brand_scores(conn),
+        trending=trending_items(conn, 20), channels=channel_breakdown(conn),
+        daily=daily_volume(conn),
+        req=top_items_by_intent(conn, "request", 30),
+        sat=top_items_by_intent(conn, "satisfaction", 30),
+        reg=top_items_by_intent(conn, "regret", 30),
+        own=top_items_by_intent(conn, "ownership", 30),
+        unmet=unmet_demand(conn, 3), profiles=buyer_profiles(conn, 20),
+        cross=brand_cross_sell(conn, 10), sizes=size_demand(conn),
+        colors=color_demand(conn), inv=inventory_recommendations(conn),
+        season=monthly_seasonality(conn), conv=conversion_tracking(conn),
+    )
+    rows = conn.execute(
+        "SELECT intent_type, COUNT(*) as count FROM processed_mentions GROUP BY intent_type"
+    ).fetchall()
+    d["intent_dist"] = [dict(r) for r in rows]
+    conn.close()
+    d["n_brands"] = len(d["brands"])
+    d["n_items"] = len(d["items"])
+    d["n_channels"] = len(d["channels"])
+    d["profiles_flat"] = [
+        {k: v for k, v in p.items() if k not in ("top_brands", "top_requests")}
+        for p in d["profiles"]
+    ]
+    return d
+
+
+# ── HTML helpers ──────────────────────────────────────────────────────────
+
+def _kpi(value, label, color="#06b6d4"):
+    fmt = f"{value:,}" if isinstance(value, (int, float)) else escape(str(value))
+    return (f'<div class="kpi-card"><div class="kpi-value" style="color:{color}">'
+            f'{fmt}</div><div class="kpi-label">{escape(label)}</div></div>')
+
+
+def _exp(html_content, color=""):
+    cls = f"explainer {color}" if color else "explainer"
+    return f'<div class="{cls}">{html_content}</div>'
+
+
+def _sec(title, sub=""):
+    s = f'<div class="section-sub">{escape(sub)}</div>' if sub else ""
+    return f'<div class="section-title">{escape(title)}</div>{s}'
+
+
+def _act(title, items):
+    if not items:
+        return ""
+    li = "".join(f"<li>{escape(str(i))}</li>" for i in items)
+    return f'<div class="action-box"><div class="action-title">{escape(title)}</div><ul>{li}</ul></div>'
+
+
+def _chart(cid, title, sub=""):
+    s = f'<div class="chart-sub">{escape(sub)}</div>' if sub else ""
+    return (f'<div class="chart-card"><h3>{escape(title)}</h3>{s}'
+            f'<div id="{cid}" class="chart-container"></div></div>')
+
+
+def _table(rows, col_map, tbody_id="", max_rows=None):
+    if not rows:
+        return '<p style="color:#6b7280;padding:12px">No data available.</p>'
+    cols = list(col_map.keys())
+    thead = "".join(f'<th data-sort>{escape(col_map[c])}</th>' for c in cols)
+    limit = rows[:max_rows] if max_rows else rows
+    trs = []
+    for r in limit:
+        cells = []
+        for c in cols:
+            v = r.get(c, "")
+            if isinstance(v, float):
+                v = f"{v:.2f}"
+            cells.append(f"<td>{escape(str(v))}</td>")
+        trs.append(f'<tr>{"".join(cells)}</tr>')
+    tid = f' id="{tbody_id}"' if tbody_id else ""
+    return (f'<div class="table-wrap"><table class="data-table"><thead><tr>{thead}</tr>'
+            f'</thead><tbody{tid}>{"".join(trs)}</tbody></table></div>')
+
+
+# ── Figure builders ───────────────────────────────────────────────────────
+
+def _fig(fig_obj):
+    fig_obj.update_layout(**THEME)
+    return json.loads(fig_obj.to_json())
+
+
+def _build_figures(D):
+    figs = {}
+    bdf = pd.DataFrame(D["brands"]).head(15)
+    if not bdf.empty:
+        figs["fig-brands"] = _fig(px.bar(
+            bdf, x="brand", y="mentions", color="trend_score",
+            color_continuous_scale="Viridis",
+            labels={"mentions": "Total Mentions", "trend_score": "Trend"}))
+    idf = pd.DataFrame(D["intent_dist"])
+    if not idf.empty:
+        figs["fig-intent"] = _fig(px.pie(
+            idf, values="count", names="intent_type",
+            color_discrete_sequence=[C["blue"], C["green"], C["red"], C["amber"], "#6b7280"]))
+    for key, xcol, data_key in [("fig-sizes", "size", "sizes"), ("fig-colors", "color", "colors")]:
+        df = pd.DataFrame(D[data_key]).head(12)
+        if not df.empty:
+            figs[key] = _fig(px.bar(
+                df, x=xcol, y=["requests", "owned"], barmode="group",
+                color_discrete_sequence=[C["blue"], C["green"]],
+                labels={"value": "Count", "variable": ""}))
+    pdf = pd.DataFrame(D["profiles_flat"])
+    if not pdf.empty:
+        seg = pdf.groupby("segment").size().reset_index(name="count")
+        figs["fig-segments"] = _fig(px.pie(
+            seg, values="count", names="segment",
+            color_discrete_sequence=[C["blue"], C["green"], C["red"], C["amber"], C["purple"]]))
+        figs["fig-users"] = _fig(px.bar(
+            pdf.head(15), x="user", y=["requests", "owned"], barmode="group",
+            color_discrete_sequence=[C["blue"], C["green"]],
+            labels={"value": "Count", "variable": ""}))
+    ddf = pd.DataFrame(D["daily"])
+    if not ddf.empty:
+        figs["fig-daily"] = _fig(px.area(
+            ddf, x="day", y=["requests", "satisfaction", "regret", "ownership"],
+            color_discrete_sequence=[C["blue"], C["green"], C["red"], C["amber"]],
+            labels={"value": "Mentions", "variable": "Signal", "day": "Date"}))
+    mdf = pd.DataFrame(D["season"])
+    if not mdf.empty:
+        figs["fig-season"] = _fig(px.line(
+            mdf, x="month", y=["total", "requests", "owned"],
+            color_discrete_sequence=[C["purple"], C["blue"], C["green"]],
+            labels={"value": "Mentions", "variable": "Type", "month": "Month"}))
+    chdf = pd.DataFrame(D["channels"]).head(12)
+    if not chdf.empty:
+        figs["fig-ch-total"] = _fig(px.bar(
+            chdf, x="channel", y="total", color="avg_score",
+            color_continuous_scale="RdYlGn",
+            labels={"total": "Mentions", "avg_score": "Signal Strength"}))
+        figs["fig-ch-intent"] = _fig(px.bar(
+            chdf.head(10), x="channel",
+            y=["requests", "satisfaction", "regret", "ownership"], barmode="stack",
+            color_discrete_sequence=[C["blue"], C["green"], C["red"], C["amber"]],
+            labels={"value": "Count", "variable": "Signal"}))
+    return figs
+
+
+# ── Tab content ───────────────────────────────────────────────────────────
+
+def _tab_overview(D):
+    actions = []
+    if D["unmet"]:
+        t = D["unmet"][0]
+        actions.append(f"Stock {t['brand']} {t['item']} -- {t['demand_gap']} people want it but cannot find it")
+    if D["sizes"]:
+        actions.append(f"Focus on sizes {', '.join(s['size'] for s in D['sizes'][:3])} -- most requested")
+    if D["cross"]:
+        c = D["cross"][0]
+        actions.append(f"Bundle {c['brand_a']} + {c['brand_b']} -- {c['shared_users']} customers want both")
+    p = ['<div class="page-content">']
+    p.append(_exp(
+        "<strong>Welcome to your Demand Intelligence Dashboard.</strong> "
+        "This tool analyzes thousands of Discord messages to find "
+        "<strong>what people want to buy</strong>, "
+        "<strong>what is trending</strong>, and "
+        "<strong>where the biggest sales opportunities are</strong>. "
+        "Every number comes from real conversations in your Discord servers."))
+    p.append('<div class="kpi-row">')
+    p.append(_kpi(D["raw"], "Messages Scanned", C["cyan"]))
+    p.append(_kpi(D["mentions"], "Product Mentions", C["green"]))
+    p.append(_kpi(D["n_brands"], "Brands Detected", C["amber"]))
+    p.append(_kpi(D["n_items"], "Item Combinations", C["red"]))
+    p.append(_kpi(D["n_channels"], "Channels Analyzed", C["purple"]))
+    p.append("</div>")
+    p.append(_exp(
+        "<strong>Messages Scanned:</strong> Total Discord messages processed. "
+        "<strong>Product Mentions:</strong> Messages about a specific brand or item. "
+        "<strong>Brands:</strong> Unique brands mentioned. "
+        '<strong>Item Combinations:</strong> Unique brand + item pairs (e.g. "Balenciaga hoodie"). '
+        "<strong>Channels:</strong> Discord channels with product discussion.", "green"))
+    p.append('<div class="two-col">')
+    p.append(_chart("fig-brands", "Top 15 Brands by Mentions",
+                     "Taller bars = more popular. Color shows trend momentum."))
+    p.append(_chart("fig-intent", "What People Are Saying (Intent Breakdown)",
+                     "Shows the mix of buying signals across your community."))
+    p.append("</div>")
+    p.append(_exp(
+        "<strong>Intent types:</strong> "
+        "<strong>Request</strong> = looking to buy. "
+        "<strong>Ownership</strong> = just bought it. "
+        "<strong>Satisfaction</strong> = positive review. "
+        "<strong>Regret</strong> = missed opportunity. "
+        "<strong>Neutral</strong> = mentioned without clear buying intent.", "purple"))
+    p.append(_act("Top Actions Based on Your Data", actions))
+    p.append("</div>")
+    return "\n".join(p)
+
+
+def _tab_stock(D):
+    p = ['<div class="page-content">']
+    p.append(_exp(
+        "<strong>Unmet Demand = Sales Opportunity.</strong> "
+        "These items are <strong>actively requested</strong> but "
+        "<strong>almost nobody has them yet</strong>. "
+        "The bigger the gap between People Asking and People Who Have It, "
+        "the bigger your opportunity.", "red"))
+    p.append(_sec("Unmet Demand -- Items People Want but Cannot Get",
+                   "Sorted by demand gap. Higher gap = bigger opportunity."))
+    p.append(_table(D["unmet"][:20], {
+        "brand": "Brand", "item": "Item", "requests": "People Asking",
+        "owned": "People Who Have It", "demand_gap": "Unmet Gap",
+        "unique_requesters": "Unique Buyers"}))
+    p.append(_sec("Inventory Recommendations",
+                   "AI-prioritized stocking suggestions based on all demand signals."))
+    p.append(_exp(
+        "<strong>Priority levels:</strong> "
+        "<strong>HIGH</strong> = 10+ unmet requests, stock immediately. "
+        "<strong>MEDIUM</strong> = 5-9 unmet, strong opportunity. "
+        "<strong>LOW</strong> = 2-4 unmet, worth watching.", "amber"))
+    p.append(_table(D["inv"][:15], {
+        "priority": "Priority", "brand": "Brand", "item": "Item",
+        "demand_gap": "Demand Gap", "notes": "Why"}))
+    p.append('<div class="two-col">')
+    p.append(_chart("fig-sizes", "Most Requested Sizes",
+                     "Blue = people asking. Green = people who own it."))
+    p.append(_chart("fig-colors", "Most Requested Colors",
+                     "Blue = people asking. Green = people who own it."))
+    p.append("</div>")
+    p.append(_exp(
+        "<strong>Size &amp; Color Tip:</strong> "
+        "When the blue bar (requests) is much taller than green (owned), "
+        "people want it but cannot find it. Prioritize those variants.", "green"))
+    p.append("</div>")
+    return "\n".join(p)
+
+
+def _tab_customers(D):
+    p = ['<div class="page-content">']
+    p.append(_exp(
+        "<strong>Know your customers.</strong> "
+        "We analyze each user's Discord activity to understand buying behavior. "
+        "<strong>Loyal Buyers</strong> buy often. "
+        "<strong>High-Intent Prospects</strong> ask for a lot but buy little (untapped opportunity). "
+        "<strong>Active Buyers</strong> moderate buying. "
+        "<strong>Browsers</strong> window shopping. "
+        "<strong>Casual</strong> light activity."))
+    p.append('<div class="two-col">')
+    p.append(_chart("fig-segments", "Customer Segments",
+                     "How your community breaks down by buying behavior."))
+    p.append(_chart("fig-users", "Top Users by Activity",
+                     "Blue = items requested. Green = items bought."))
+    p.append("</div>")
+    p.append(_sec("Customer Profiles"))
+    p.append(_exp(
+        "<strong>Buy Ratio</strong> = what % of requests turned into purchases. "
+        "0.50 means half their asks led to buying. "
+        "Low ratio + high requests = target with offers.", "amber"))
+    p.append(_table(D["profiles_flat"][:50], {
+        "user": "Username", "segment": "Segment", "requests": "Requests",
+        "owned": "Purchased", "satisfied": "Happy Reviews",
+        "regrets": "Missed Items", "buy_ratio": "Buy Ratio"}))
+    p.append(_sec("Cross-Sell Opportunities",
+                   "Brands the same customers discuss -- bundle these for higher sales."))
+    p.append(_exp(
+        "<strong>Cross-sell:</strong> "
+        "If someone likes Brand A, they likely want Brand B too. "
+        "Use this to create bundles or plan inventory together.", "purple"))
+    p.append(_table(D["cross"][:15], {
+        "brand_a": "Brand A", "brand_b": "Brand B",
+        "shared_users": "Customers in Common"}))
+    p.append(_sec("Conversions (Request to Purchase)",
+                   "People who asked about a brand AND later bought it."))
+    p.append(_exp(
+        "High conversion brands are safer to stock heavily -- proven demand.", "green"))
+    p.append(_table(D["conv"][:15], {
+        "author": "Customer", "brand": "Brand", "requests": "Times Asked",
+        "owned": "Times Bought", "satisfied": "Happy Reviews"}))
+    p.append("</div>")
+    return "\n".join(p)
+
+
+def _tab_explorer(D):
+    p = ['<div class="page-content">']
+    p.append(_exp(
+        "<strong>Search and explore all detected items.</strong> "
+        "Type a brand or item name to filter. Click column headers to sort. "
+        "<strong>Score</strong> combines popularity (20%), buying intent strength (50%), "
+        "and trend momentum (30%) -- higher = more valuable to stock. "
+        "<strong>Velocity</strong> shows trend direction: positive = rising, negative = cooling."))
+    p.append('<div class="search-input" style="margin-bottom:16px">'
+             '<input id="item-search" type="text" '
+             'placeholder="Type a brand or item name to filter..."></div>')
+    p.append(_table(D["items"], {
+        "brand": "Brand", "item": "Item", "variant": "Variant",
+        "total_mentions": "Mentions", "request_count": "Requests",
+        "satisfaction_count": "Happy", "regret_count": "Regret",
+        "velocity": "Velocity", "final_score": "Score"}, tbody_id="items-tbody"))
+    p.append("</div>")
+    return "\n".join(p)
+
+
+def _tab_trends(D):
+    p = ['<div class="page-content">']
+    p.append(_exp(
+        "<strong>Track how demand changes over time.</strong> "
+        "Spikes often correspond to new drops, restocks, or community hype events. "
+        "The trending table shows what is gaining momentum <strong>right now</strong>."))
+    p.append(_chart("fig-daily", "Daily Activity by Intent Type",
+                     "Each color = a different signal. Spikes = high activity days."))
+    p.append(_sec("Fastest Rising Items",
+                   "Biggest increase in mentions this period vs. previous period."))
+    p.append(_exp(
+        "<strong>Velocity</strong> measures momentum. "
+        "<strong>+2.0x</strong> means 3x more mentions than last period. "
+        "High velocity + high requests = about to blow up.", "amber"))
+    p.append(_table(D["trending"][:20], {
+        "brand": "Brand", "item": "Item", "recent_mentions": "This Period",
+        "prev_mentions": "Last Period", "velocity": "Velocity"}))
+    p.append(_chart("fig-season", "Monthly Activity Patterns",
+                     "Seasonal trends -- use this to plan inventory for busy months."))
+    p.append("</div>")
+    return "\n".join(p)
+
+
+def _tab_channels(D):
+    p = ['<div class="page-content">']
+    p.append(_exp(
+        "<strong>Not all channels are equal.</strong> "
+        "WTB (Want to Buy) channels give the strongest buying signals. "
+        "Pickups show actual purchases. General chat has more noise. "
+        "Use this to understand <strong>where</strong> signals come from."))
+    p.append('<div class="two-col">')
+    p.append(_chart("fig-ch-total", "Mentions by Channel",
+                     "Which channels produce the most product discussion."))
+    p.append(_chart("fig-ch-intent", "Intent Mix per Channel",
+                     "What type of messages each channel produces."))
+    p.append("</div>")
+    p.append(_exp(
+        "<strong>Signal Strength (color):</strong> "
+        "Green = high-quality buying signals (WTB, pickups). "
+        "Yellow/red = lower intent (general chat). "
+        "Prioritize green channels for stocking decisions.", "green"))
+    p.append(_sec("Full Channel Data"))
+    p.append(_table(D["channels"], {
+        "channel": "Channel", "total": "Total", "requests": "Buy Requests",
+        "satisfaction": "Happy", "regret": "Missed Opp.",
+        "ownership": "Purchases", "avg_score": "Strength"}))
+    p.append("</div>")
+    return "\n".join(p)
+
+
+def _tab_signals(D):
+    bc, gc, rc, ac = C["blue"], C["green"], C["red"], C["amber"]
+    p = ['<div class="page-content">']
+    p.append(_exp(
+        "<strong>Four types of demand signals:</strong><br>"
+        f'<strong style="color:{bc}">Requests</strong> -- Actively looking to buy.<br>'
+        f'<strong style="color:{gc}">Satisfaction</strong> -- Positive reviews.<br>'
+        f'<strong style="color:{rc}">Regret</strong> -- Wish they had bought it.<br>'
+        f'<strong style="color:{ac}">Ownership</strong> -- Just received it.'))
+    p.append('<div class="two-col"><div>')
+    p.append(_sec("Most Requested (People Want These)"))
+    p.append(_table(D["req"][:15], {
+        "brand": "Brand", "item": "Item", "count": "Requests", "avg_score": "Strength"}))
+    p.append("</div><div>")
+    p.append(_sec("Most Loved (High Satisfaction)"))
+    p.append(_table(D["sat"][:15], {
+        "brand": "Brand", "item": "Item", "count": "Reviews", "avg_score": "Strength"}))
+    p.append("</div></div>")
+    p.append('<div class="two-col"><div>')
+    p.append(_sec("Missed Opportunities (Regret)"))
+    p.append(_exp(
+        "High regret = people want these but missed out. "
+        "Stock them to capture pent-up demand.", "red"))
+    p.append(_table(D["reg"][:15], {
+        "brand": "Brand", "item": "Item", "count": "Regret Mentions", "avg_score": "Strength"}))
+    p.append("</div><div>")
+    p.append(_sec("Recently Purchased (Ownership)"))
+    p.append(_exp(
+        "Items people are actively buying. High ownership + high satisfaction "
+        "= safe to keep stocking.", "green"))
+    p.append(_table(D["own"][:15], {
+        "brand": "Brand", "item": "Item", "count": "Purchases", "avg_score": "Strength"}))
+    p.append("</div></div></div>")
+    return "\n".join(p)
+
+
+# ── Page assembly ─────────────────────────────────────────────────────────
+
+JS = r"""
+document.querySelectorAll('#tabs .tab').forEach(btn=>{
+  btn.addEventListener('click',()=>{
+    document.querySelectorAll('#tabs .tab').forEach(b=>b.classList.remove('tab--selected'));
+    document.querySelectorAll('.tab-panel').forEach(p=>p.style.display='none');
+    btn.classList.add('tab--selected');
+    document.getElementById('tab-'+btn.dataset.tab).style.display='';
+  });
+});
+Object.entries(FIGURES).forEach(([id,fig])=>{
+  const el=document.getElementById(id);
+  if(el)Plotly.newPlot(el,fig.data,fig.layout,{displayModeBar:false,responsive:true});
+});
+const si=document.getElementById('item-search');
+if(si){si.addEventListener('input',e=>{
+  const t=e.target.value.toLowerCase();
+  document.querySelectorAll('#items-tbody tr').forEach(r=>{
+    r.style.display=r.textContent.toLowerCase().includes(t)?'':'none';
+  });
+});}
+document.querySelectorAll('th[data-sort]').forEach(th=>{
+  th.addEventListener('click',()=>{
+    const tb=th.closest('table').querySelector('tbody');
+    const rows=Array.from(tb.rows);
+    const i=Array.from(th.parentNode.children).indexOf(th);
+    const asc=th.dataset.dir!=='asc';th.dataset.dir=asc?'asc':'desc';
+    rows.sort((a,b)=>{
+      const av=a.cells[i]?.textContent||'',bv=b.cells[i]?.textContent||'';
+      const an=parseFloat(av),bn=parseFloat(bv);
+      if(!isNaN(an)&&!isNaN(bn))return asc?an-bn:bn-an;
+      return asc?av.localeCompare(bv):bv.localeCompare(av);
+    });
+    rows.forEach(r=>tb.appendChild(r));
+  });
+});
+"""
+
+
+def _build_page(D, figures):
+    tabs = [
+        ("overview", "Overview", _tab_overview(D)),
+        ("stock", "What to Stock", _tab_stock(D)),
+        ("customers", "Customer Insights", _tab_customers(D)),
+        ("explorer", "Item Explorer", _tab_explorer(D)),
+        ("trends", "Market Trends", _tab_trends(D)),
+        ("channels", "Channel Analysis", _tab_channels(D)),
+        ("signals", "Demand Signals", _tab_signals(D)),
+    ]
+    nav = ""
+    for i, (tid, label, _) in enumerate(tabs):
+        cls = "tab tab--selected" if i == 0 else "tab"
+        nav += f'<button class="{cls}" data-tab="{tid}">{label}</button>'
+    panels = ""
+    for i, (tid, _, content) in enumerate(tabs):
+        disp = "" if i == 0 else ' style="display:none"'
+        panels += f'<section id="tab-{tid}" class="tab-panel"{disp}>\n{content}\n</section>\n'
+    fj = json.dumps(figures, separators=(",", ":"))
+    return f"""<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>ZR ItemFinder &mdash; Demand Intelligence</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/style.css">
+<script src="https://cdn.plot.ly/plotly-2.32.0.min.js" charset="utf-8"></script>
+</head>
+<body>
+<header class="site-header">
+<div><h1>ZR ItemFinder</h1><div class="subtitle">Demand Intelligence for Resellers</div></div>
+<div class="header-stats">
+<div class="header-stat"><div class="num">{D["raw"]:,}</div><div class="lbl">Messages</div></div>
+<div class="header-stat"><div class="num">{D["mentions"]:,}</div><div class="lbl">Mentions</div></div>
+<div class="header-stat"><div class="num">{D["n_brands"]}</div><div class="lbl">Brands</div></div>
+</div>
+</header>
+<nav class="custom-tabs" id="tabs">{nav}</nav>
+{panels}
+<footer style="border-top:1px solid var(--border);margin-top:32px">
+<p style="color:var(--text-muted);font-size:0.75rem;text-align:center;padding:20px 0">
+ZR ItemFinder v1.0 &mdash; Data from Discord community analysis</p>
+</footer>
+<script>const FIGURES={fj};{JS}</script>
+</body>
+</html>"""
+
+
+# ── Build command ─────────────────────────────────────────────────────────
+
+def build():
+    log.info("Loading data...")
+    D = _load()
+    log.info(f"  {D['raw']:,} messages, {D['mentions']:,} mentions, {D['n_brands']} brands")
+
+    log.info("Building Plotly figures...")
+    figures = _build_figures(D)
+    log.info(f"  {len(figures)} charts")
+
+    log.info("Generating HTML...")
+    html = _build_page(D, figures)
+
+    DIST.mkdir(parents=True, exist_ok=True)
+    (DIST / "assets").mkdir(exist_ok=True)
+    (DIST / "index.html").write_text(html, encoding="utf-8")
+    shutil.copy(ASSETS_SRC / "style.css", DIST / "assets" / "style.css")
+
+    size_kb = len(html.encode("utf-8")) / 1024
+    log.info(f"Static site built => {DIST}/ ({size_kb:.0f} KB)")
+    log.info(f"Deploy with: npx wrangler pages deploy {DIST} --project-name=zr-itemfinder")
+
+
+if __name__ == "__main__":
+    build()

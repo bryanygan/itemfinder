@@ -123,6 +123,28 @@ body {
 /* ── Graph backgrounds ── */
 .js-plotly-plot .plotly .main-svg { background: transparent !important; }
 
+/* ── Static HTML tables ── */
+.data-table { width: 100%; border-collapse: collapse; }
+.data-table th {
+    background-color: var(--bg-surface); color: var(--text-secondary);
+    border: 1px solid var(--border); font-size: 0.78rem; text-transform: uppercase;
+    letter-spacing: 0.04em; padding: 10px 12px; font-weight: 600; text-align: left;
+    user-select: none;
+}
+.data-table th[data-sort] { cursor: pointer; }
+.data-table th[data-sort]:hover { color: var(--text-primary); }
+.data-table td {
+    background-color: var(--bg-card); color: var(--text-primary);
+    border: 1px solid var(--border); font-size: 0.82rem; padding: 8px 12px;
+}
+.data-table tr:nth-child(odd) td { background-color: rgba(37,40,54,0.5); }
+.table-wrap { overflow-x: auto; margin-bottom: 8px; }
+.chart-container { width: 100%; min-height: 280px; }
+
+/* ── Static tab nav ── */
+nav.custom-tabs { display: flex; overflow-x: auto; }
+nav.custom-tabs .tab { font-family: inherit; outline: none; cursor: pointer; white-space: nowrap; }
+
 /* ── Responsive ── */
 @media (max-width: 768px) {
     .site-header { flex-direction: column; gap: 12px; padding: 16px; }
