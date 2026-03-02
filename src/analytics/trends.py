@@ -17,11 +17,17 @@ def _parse_ts(ts_str: str) -> datetime | None:
         return None
 
 
-def trending_items(conn: sqlite3.Connection, top_n: int = 20) -> list[dict]:
+def trending_items(conn: sqlite3.Connection, top_n: int = 20,
+                    since: str | None = None) -> list[dict]:
     """Identify fastest-rising items by comparing recent vs previous window."""
+
+    where_since = " AND timestamp >= ?" if since else ""
+    params_since = [since] if since else []
 
     max_ts = conn.execute(
         "SELECT MAX(timestamp) FROM processed_mentions"
+        + (" WHERE timestamp >= ?" if since else ""),
+        params_since,
     ).fetchone()[0]
     if not max_ts:
         return []
@@ -30,12 +36,16 @@ def trending_items(conn: sqlite3.Connection, top_n: int = 20) -> list[dict]:
     cutoff_recent = (latest - timedelta(days=TREND_WINDOW_DAYS)).isoformat()
     cutoff_prev = (latest - timedelta(days=TREND_WINDOW_DAYS * 2)).isoformat()
 
+    # Clamp cutoff_prev to since boundary when filtering by timeframe
+    if since and since > cutoff_prev:
+        cutoff_prev = since
+
     rows = conn.execute("""
         SELECT brand, item, timestamp
         FROM processed_mentions
         WHERE (brand IS NOT NULL OR item IS NOT NULL)
           AND timestamp >= ?
-    """, (cutoff_prev,)).fetchall()
+    """ + where_since, [cutoff_prev] + params_since).fetchall()
 
     recent_counts: dict[tuple, int] = defaultdict(int)
     prev_counts: dict[tuple, int] = defaultdict(int)
@@ -68,9 +78,12 @@ def trending_items(conn: sqlite3.Connection, top_n: int = 20) -> list[dict]:
     return results[:top_n]
 
 
-def channel_breakdown(conn: sqlite3.Connection) -> list[dict]:
+def channel_breakdown(conn: sqlite3.Connection,
+                      since: str | None = None) -> list[dict]:
     """Break down mentions by channel."""
-    rows = conn.execute("""
+    where = "WHERE timestamp >= ?" if since else ""
+    params = [since] if since else []
+    rows = conn.execute(f"""
         SELECT channel,
                COUNT(*) as total,
                SUM(CASE WHEN intent_type='request' THEN 1 ELSE 0 END) as requests,
@@ -80,15 +93,19 @@ def channel_breakdown(conn: sqlite3.Connection) -> list[dict]:
                SUM(CASE WHEN intent_type='neutral' THEN 1 ELSE 0 END) as neutral,
                AVG(intent_score) as avg_score
         FROM processed_mentions
+        {where}
         GROUP BY channel
         ORDER BY total DESC
-    """).fetchall()
+    """, params).fetchall()
     return [dict(r) for r in rows]
 
 
-def daily_volume(conn: sqlite3.Connection) -> list[dict]:
+def daily_volume(conn: sqlite3.Connection,
+                 since: str | None = None) -> list[dict]:
     """Get daily mention counts for time-series visualization."""
-    rows = conn.execute("""
+    where = "WHERE timestamp >= ?" if since else ""
+    params = [since] if since else []
+    rows = conn.execute(f"""
         SELECT DATE(timestamp) as day,
                COUNT(*) as mentions,
                SUM(CASE WHEN intent_type='request' THEN 1 ELSE 0 END) as requests,
@@ -96,37 +113,46 @@ def daily_volume(conn: sqlite3.Connection) -> list[dict]:
                SUM(CASE WHEN intent_type='regret' THEN 1 ELSE 0 END) as regret,
                SUM(CASE WHEN intent_type='ownership' THEN 1 ELSE 0 END) as ownership
         FROM processed_mentions
+        {where}
         GROUP BY DATE(timestamp)
         ORDER BY day
-    """).fetchall()
+    """, params).fetchall()
     return [dict(r) for r in rows]
 
 
-def top_items_by_intent(conn: sqlite3.Connection, intent: str, limit: int = 15) -> list[dict]:
+def top_items_by_intent(conn: sqlite3.Connection, intent: str, limit: int = 15,
+                        since: str | None = None) -> list[dict]:
     """Get top items for a specific intent type."""
-    rows = conn.execute("""
+    since_clause = " AND timestamp >= ?" if since else ""
+    params = [intent] + ([since] if since else []) + [limit]
+    rows = conn.execute(f"""
         SELECT brand, item,
                COUNT(*) as count,
                AVG(intent_score) as avg_score
         FROM processed_mentions
         WHERE intent_type = ?
           AND (brand IS NOT NULL OR item IS NOT NULL)
+          {since_clause}
         GROUP BY brand, item
         ORDER BY count DESC
         LIMIT ?
-    """, (intent, limit)).fetchall()
+    """, params).fetchall()
     return [dict(r) for r in rows]
 
 
-def sentiment_over_time(conn: sqlite3.Connection) -> list[dict]:
+def sentiment_over_time(conn: sqlite3.Connection,
+                        since: str | None = None) -> list[dict]:
     """Weekly sentiment aggregation."""
-    rows = conn.execute("""
+    since_clause = " AND timestamp >= ?" if since else ""
+    params = [since] if since else []
+    rows = conn.execute(f"""
         SELECT strftime('%Y-W%W', timestamp) as week,
                intent_type,
                COUNT(*) as count
         FROM processed_mentions
         WHERE intent_type != 'neutral'
+        {since_clause}
         GROUP BY week, intent_type
         ORDER BY week
-    """).fetchall()
+    """, params).fetchall()
     return [dict(r) for r in rows]

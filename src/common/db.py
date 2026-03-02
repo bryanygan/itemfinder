@@ -98,9 +98,17 @@ def insert_processed_mentions(conn: sqlite3.Connection, rows: list[tuple]) -> in
     return cur.rowcount
 
 
-def raw_message_count(conn: sqlite3.Connection) -> int:
+def raw_message_count(conn: sqlite3.Connection, since: str | None = None) -> int:
+    if since:
+        return conn.execute(
+            "SELECT COUNT(*) FROM raw_messages WHERE timestamp >= ?", (since,)
+        ).fetchone()[0]
     return conn.execute("SELECT COUNT(*) FROM raw_messages").fetchone()[0]
 
 
-def processed_mention_count(conn: sqlite3.Connection) -> int:
+def processed_mention_count(conn: sqlite3.Connection, since: str | None = None) -> int:
+    if since:
+        return conn.execute(
+            "SELECT COUNT(*) FROM processed_mentions WHERE timestamp >= ?", (since,)
+        ).fetchone()[0]
     return conn.execute("SELECT COUNT(*) FROM processed_mentions").fetchone()[0]

@@ -6,6 +6,8 @@ actionable sales intelligence. Every metric is explained in plain English.
 Usage: python -m src.dashboard.app
 """
 
+from datetime import datetime, timedelta
+
 import pandas as pd
 import plotly.express as px
 from dash import Dash, Input, Output, callback, dcc, html
@@ -29,70 +31,55 @@ from src.process.scoring import compute_brand_scores, compute_item_scores
 
 log = get_logger("dashboard")
 
+TIMEFRAME_OPTIONS = [
+    {"label": "7 Days", "value": "7"},
+    {"label": "14 Days", "value": "14"},
+    {"label": "30 Days", "value": "30"},
+    {"label": "60 Days", "value": "60"},
+    {"label": "90 Days", "value": "90"},
+    {"label": "All Time", "value": "all"},
+]
+
 
 # ── Data loading ──────────────────────────────────────────────────────────
 
-def _load():
+def _load(since: str | None = None):
     conn = get_connection()
     d = dict(
-        raw=raw_message_count(conn),
-        mentions=processed_mention_count(conn),
-        items=compute_item_scores(conn),
-        brands=compute_brand_scores(conn),
-        trending=trending_items(conn, 20),
-        channels=channel_breakdown(conn),
-        daily=daily_volume(conn),
-        req=top_items_by_intent(conn, "request", 30),
-        sat=top_items_by_intent(conn, "satisfaction", 30),
-        reg=top_items_by_intent(conn, "regret", 30),
-        own=top_items_by_intent(conn, "ownership", 30),
-        unmet=unmet_demand(conn, 3),
-        profiles=buyer_profiles(conn, 20),
-        cross=brand_cross_sell(conn, 10),
-        sizes=size_demand(conn),
-        colors=color_demand(conn),
-        inv=inventory_recommendations(conn),
-        season=monthly_seasonality(conn),
-        conv=conversion_tracking(conn),
+        raw=raw_message_count(conn, since=since),
+        mentions=processed_mention_count(conn, since=since),
+        items=compute_item_scores(conn, since=since),
+        brands=compute_brand_scores(conn, since=since),
+        trending=trending_items(conn, 20, since=since),
+        channels=channel_breakdown(conn, since=since),
+        daily=daily_volume(conn, since=since),
+        req=top_items_by_intent(conn, "request", 30, since=since),
+        sat=top_items_by_intent(conn, "satisfaction", 30, since=since),
+        reg=top_items_by_intent(conn, "regret", 30, since=since),
+        own=top_items_by_intent(conn, "ownership", 30, since=since),
+        unmet=unmet_demand(conn, 3, since=since),
+        profiles=buyer_profiles(conn, 20, since=since),
+        cross=brand_cross_sell(conn, 10, since=since),
+        sizes=size_demand(conn, since=since),
+        colors=color_demand(conn, since=since),
+        inv=inventory_recommendations(conn, since=since),
+        season=monthly_seasonality(conn, since=since),
+        conv=conversion_tracking(conn, since=since),
     )
     rows = conn.execute(
         "SELECT intent_type, COUNT(*) as count "
-        "FROM processed_mentions GROUP BY intent_type"
+        "FROM processed_mentions "
+        + ("WHERE timestamp >= ? " if since else "")
+        + "GROUP BY intent_type",
+        [since] if since else [],
     ).fetchall()
     d["intent_dist"] = pd.DataFrame([dict(r) for r in rows]) if rows else pd.DataFrame()
     conn.close()
     return d
 
 
-D = _load()
-
-
-def _df(key):
-    return pd.DataFrame(D[key]) if D[key] else pd.DataFrame()
-
-
-items_df = _df("items")
-brands_df = _df("brands")
-channels_df = _df("channels")
-daily_df = _df("daily")
-unmet_df = _df("unmet")
-sizes_df = _df("sizes")
-colors_df = _df("colors")
-cross_df = _df("cross")
-inv_df = _df("inv")
-season_df = _df("season")
-conv_df = _df("conv")
-trending_df = _df("trending")
-req_df = _df("req")
-sat_df = _df("sat")
-reg_df = _df("reg")
-own_df = _df("own")
-profiles_df = pd.DataFrame([
-    {k: v for k, v in p.items() if k not in ("top_brands", "top_requests")}
-    for p in D["profiles"]
-]) if D["profiles"] else pd.DataFrame()
-n_brands = len(brands_df)
-n_items = len(items_df)
+def _df(data, key):
+    return pd.DataFrame(data[key]) if data[key] else pd.DataFrame()
 
 
 # ── App setup ─────────────────────────────────────────────────────────────
@@ -107,9 +94,17 @@ app = Dash(
 app.title = "ZR ItemFinder — Demand Intelligence"
 
 
-# ── Tab 1: Overview ───────────────────────────────────────────────────────
+# ── Tab builders (all take data dict D) ──────────────────────────────────
 
-def _overview():
+def _overview(D):
+    items_df = _df(D, "items")
+    brands_df = _df(D, "brands")
+    unmet_df = _df(D, "unmet")
+    sizes_df = _df(D, "sizes")
+    cross_df = _df(D, "cross")
+    n_brands = len(brands_df)
+    n_items = len(items_df)
+
     actions = []
     if not unmet_df.empty:
         t = unmet_df.iloc[0]
@@ -176,9 +171,12 @@ def _overview():
     ], className="page-content")
 
 
-# ── Tab 2: What to Stock ─────────────────────────────────────────────────
+def _stock(D):
+    unmet_df = _df(D, "unmet")
+    inv_df = _df(D, "inv")
+    sizes_df = _df(D, "sizes")
+    colors_df = _df(D, "colors")
 
-def _stock():
     return html.Div([
         explainer([
             html.Strong("Unmet Demand = Sales Opportunity. "),
@@ -236,9 +234,14 @@ def _stock():
     ], className="page-content")
 
 
-# ── Tab 3: Customer Insights ─────────────────────────────────────────────
+def _customers(D):
+    profiles_df = pd.DataFrame([
+        {k: v for k, v in p.items() if k not in ("top_brands", "top_requests")}
+        for p in D["profiles"]
+    ]) if D["profiles"] else pd.DataFrame()
+    cross_df = _df(D, "cross")
+    conv_df = _df(D, "conv")
 
-def _customers():
     return html.Div([
         explainer([
             html.Strong("Know your customers. "),
@@ -308,9 +311,7 @@ def _customers():
     ], className="page-content")
 
 
-# ── Tab 4: Item Explorer ─────────────────────────────────────────────────
-
-def _explorer():
+def _explorer(D):
     return html.Div([
         explainer([
             html.Strong("Search and explore all detected items. "),
@@ -327,9 +328,11 @@ def _explorer():
     ], className="page-content")
 
 
-# ── Tab 5: Market Trends ─────────────────────────────────────────────────
+def _trends(D):
+    daily_df = _df(D, "daily")
+    trending_df = _df(D, "trending")
+    season_df = _df(D, "season")
 
-def _trends():
     return html.Div([
         explainer([
             html.Strong("Track how demand changes over time. "),
@@ -372,9 +375,9 @@ def _trends():
     ], className="page-content")
 
 
-# ── Tab 6: Channel Analysis ──────────────────────────────────────────────
+def _channels_tab(D):
+    channels_df = _df(D, "channels")
 
-def _channels_tab():
     return html.Div([
         explainer([
             html.Strong("Not all channels are equal. "),
@@ -421,9 +424,12 @@ def _channels_tab():
     ], className="page-content")
 
 
-# ── Tab 7: Demand Signals ────────────────────────────────────────────────
+def _signals(D):
+    req_df = _df(D, "req")
+    sat_df = _df(D, "sat")
+    reg_df = _df(D, "reg")
+    own_df = _df(D, "own")
 
-def _signals():
     return html.Div([
         explainer([
             html.Strong("Four types of demand signals:"), html.Br(),
@@ -481,6 +487,9 @@ def _signals():
 
 # ── Main layout ───────────────────────────────────────────────────────────
 
+# Load initial data (all time) for first render
+_D0 = _load()
+
 app.layout = html.Div([
     html.Div([
         html.Div([
@@ -488,31 +497,44 @@ app.layout = html.Div([
             html.Div("Demand Intelligence for Resellers", className="subtitle"),
         ]),
         html.Div([
-            html.Div([html.Div(f"{D['raw']:,}", className="num"),
+            dcc.Dropdown(
+                id="timeframe-dropdown",
+                options=TIMEFRAME_OPTIONS,
+                value="all",
+                clearable=False,
+                style={"width": "140px", "backgroundColor": "#252836",
+                       "color": "#e8eaed", "borderColor": "#2d3044"},
+            ),
+        ], style={"display": "flex", "alignItems": "center", "gap": "20px"}),
+        html.Div([
+            html.Div([html.Div(id="hdr-msgs", children=f"{_D0['raw']:,}", className="num"),
                        html.Div("Messages", className="lbl")], className="header-stat"),
-            html.Div([html.Div(f"{D['mentions']:,}", className="num"),
+            html.Div([html.Div(id="hdr-mentions", children=f"{_D0['mentions']:,}", className="num"),
                        html.Div("Mentions", className="lbl")], className="header-stat"),
-            html.Div([html.Div(str(n_brands), className="num"),
+            html.Div([html.Div(id="hdr-brands", children=str(len(_D0["brands"])), className="num"),
                        html.Div("Brands", className="lbl")], className="header-stat"),
         ], className="header-stats"),
     ], className="site-header"),
 
     dcc.Tabs(className="custom-tabs", children=[
-        dcc.Tab(label="Overview", children=_overview(),
+        dcc.Tab(label="Overview", children=html.Div(id="overview-content"),
                 className="tab", selected_className="tab--selected"),
-        dcc.Tab(label="What to Stock", children=_stock(),
+        dcc.Tab(label="What to Stock", children=html.Div(id="stock-content"),
                 className="tab", selected_className="tab--selected"),
-        dcc.Tab(label="Customer Insights", children=_customers(),
+        dcc.Tab(label="Customer Insights", children=html.Div(id="customers-content"),
                 className="tab", selected_className="tab--selected"),
-        dcc.Tab(label="Item Explorer", children=_explorer(),
+        dcc.Tab(label="Item Explorer", children=html.Div(id="explorer-content"),
                 className="tab", selected_className="tab--selected"),
-        dcc.Tab(label="Market Trends", children=_trends(),
+        dcc.Tab(label="Market Trends", children=html.Div(id="trends-content"),
                 className="tab", selected_className="tab--selected"),
-        dcc.Tab(label="Channel Analysis", children=_channels_tab(),
+        dcc.Tab(label="Channel Analysis", children=html.Div(id="channels-content"),
                 className="tab", selected_className="tab--selected"),
-        dcc.Tab(label="Demand Signals", children=_signals(),
+        dcc.Tab(label="Demand Signals", children=html.Div(id="signals-content"),
                 className="tab", selected_className="tab--selected"),
     ]),
+
+    # Hidden store for items data (used by search callback)
+    dcc.Store(id="items-store"),
 
     html.Div([
         html.P("ZR ItemFinder v1.0 — Data from Discord community analysis",
@@ -522,11 +544,55 @@ app.layout = html.Div([
 ])
 
 
-# ── Callbacks ─────────────────────────────────────────────────────────────
+# ── Timeframe callback ───────────────────────────────────────────────────
 
-@callback(Output("items-table-container", "children"), Input("item-search", "value"))
-def _filter_items(term):
-    df = items_df.copy()
+@callback(
+    [Output("overview-content", "children"),
+     Output("stock-content", "children"),
+     Output("customers-content", "children"),
+     Output("explorer-content", "children"),
+     Output("trends-content", "children"),
+     Output("channels-content", "children"),
+     Output("signals-content", "children"),
+     Output("hdr-msgs", "children"),
+     Output("hdr-mentions", "children"),
+     Output("hdr-brands", "children"),
+     Output("items-store", "data")],
+    Input("timeframe-dropdown", "value"),
+)
+def update_timeframe(days):
+    if days and days != "all":
+        since = (datetime.now() - timedelta(days=int(days))).isoformat()
+    else:
+        since = None
+    D = _load(since)
+    items_df = _df(D, "items")
+    return [
+        _overview(D),
+        _stock(D),
+        _customers(D),
+        _explorer(D),
+        _trends(D),
+        _channels_tab(D),
+        _signals(D),
+        f"{D['raw']:,}",
+        f"{D['mentions']:,}",
+        str(len(D["brands"])),
+        items_df.to_dict("records") if not items_df.empty else [],
+    ]
+
+
+# ── Item search callback ─────────────────────────────────────────────────
+
+@callback(
+    Output("items-table-container", "children"),
+    [Input("item-search", "value"),
+     Input("items-store", "data")],
+)
+def _filter_items(term, items_data):
+    if not items_data:
+        return html.P("No data.", style={"color": "#6b7280"})
+    df = pd.DataFrame(items_data)
     if df.empty:
         return html.P("No data.", style={"color": "#6b7280"})
     if term:

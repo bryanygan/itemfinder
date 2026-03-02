@@ -8,6 +8,7 @@ Deploy: npx wrangler pages deploy dist --project-name=zr-itemfinder
 
 import json
 import shutil
+from datetime import datetime, timedelta
 from html import escape
 from pathlib import Path
 
@@ -43,25 +44,44 @@ THEME = dict(
     yaxis=dict(gridcolor="#2d3044", zerolinecolor="#2d3044"),
 )
 
+TIMEFRAMES = [
+    ("7d", 7),
+    ("14d", 14),
+    ("30d", 30),
+    ("60d", 60),
+    ("90d", 90),
+    ("all", None),
+]
 
-def _load():
+
+def _load(since: str | None = None):
     conn = get_connection()
     d = dict(
-        raw=raw_message_count(conn), mentions=processed_mention_count(conn),
-        items=compute_item_scores(conn), brands=compute_brand_scores(conn),
-        trending=trending_items(conn, 20), channels=channel_breakdown(conn),
-        daily=daily_volume(conn),
-        req=top_items_by_intent(conn, "request", 30),
-        sat=top_items_by_intent(conn, "satisfaction", 30),
-        reg=top_items_by_intent(conn, "regret", 30),
-        own=top_items_by_intent(conn, "ownership", 30),
-        unmet=unmet_demand(conn, 3), profiles=buyer_profiles(conn, 20),
-        cross=brand_cross_sell(conn, 10), sizes=size_demand(conn),
-        colors=color_demand(conn), inv=inventory_recommendations(conn),
-        season=monthly_seasonality(conn), conv=conversion_tracking(conn),
+        raw=raw_message_count(conn, since=since),
+        mentions=processed_mention_count(conn, since=since),
+        items=compute_item_scores(conn, since=since),
+        brands=compute_brand_scores(conn, since=since),
+        trending=trending_items(conn, 20, since=since),
+        channels=channel_breakdown(conn, since=since),
+        daily=daily_volume(conn, since=since),
+        req=top_items_by_intent(conn, "request", 30, since=since),
+        sat=top_items_by_intent(conn, "satisfaction", 30, since=since),
+        reg=top_items_by_intent(conn, "regret", 30, since=since),
+        own=top_items_by_intent(conn, "ownership", 30, since=since),
+        unmet=unmet_demand(conn, 3, since=since),
+        profiles=buyer_profiles(conn, 20, since=since),
+        cross=brand_cross_sell(conn, 10, since=since),
+        sizes=size_demand(conn, since=since),
+        colors=color_demand(conn, since=since),
+        inv=inventory_recommendations(conn, since=since),
+        season=monthly_seasonality(conn, since=since),
+        conv=conversion_tracking(conn, since=since),
     )
     rows = conn.execute(
-        "SELECT intent_type, COUNT(*) as count FROM processed_mentions GROUP BY intent_type"
+        "SELECT intent_type, COUNT(*) as count FROM processed_mentions "
+        + ("WHERE timestamp >= ? " if since else "")
+        + "GROUP BY intent_type",
+        [since] if since else [],
     ).fetchall()
     d["intent_dist"] = [dict(r) for r in rows]
     conn.close()
@@ -77,9 +97,10 @@ def _load():
 
 # ── HTML helpers ──────────────────────────────────────────────────────────
 
-def _kpi(value, label, color="#06b6d4"):
+def _kpi(value, label, color="#06b6d4", data_kpi=""):
     fmt = f"{value:,}" if isinstance(value, (int, float)) else escape(str(value))
-    return (f'<div class="kpi-card"><div class="kpi-value" style="color:{color}">'
+    dattr = f' data-kpi="{data_kpi}"' if data_kpi else ""
+    return (f'<div class="kpi-card"><div class="kpi-value" style="color:{color}"{dattr}>'
             f'{fmt}</div><div class="kpi-label">{escape(label)}</div></div>')
 
 
@@ -189,9 +210,62 @@ def _build_figures(D):
     return figs
 
 
-# ── Tab content ───────────────────────────────────────────────────────────
+# ── Table HTML generators (for timeframe switching) ──────────────────────
 
-def _tab_overview(D):
+def _build_tables(D):
+    """Build all table HTML strings for this timeframe."""
+    tables = {}
+    tables["tbl-unmet"] = _table(D["unmet"][:20], {
+        "brand": "Brand", "item": "Item", "requests": "People Asking",
+        "owned": "People Who Have It", "demand_gap": "Unmet Gap",
+        "unique_requesters": "Unique Buyers"})
+    tables["tbl-inv"] = _table(D["inv"][:15], {
+        "priority": "Priority", "brand": "Brand", "item": "Item",
+        "demand_gap": "Demand Gap", "notes": "Why"})
+    tables["tbl-profiles"] = _table(D["profiles_flat"][:50], {
+        "user": "Username", "segment": "Segment", "requests": "Requests",
+        "owned": "Purchased", "satisfied": "Happy Reviews",
+        "regrets": "Missed Items", "buy_ratio": "Buy Ratio"})
+    tables["tbl-cross"] = _table(D["cross"][:15], {
+        "brand_a": "Brand A", "brand_b": "Brand B",
+        "shared_users": "Customers in Common"})
+    tables["tbl-conv"] = _table(D["conv"][:15], {
+        "author": "Customer", "brand": "Brand", "requests": "Times Asked",
+        "owned": "Times Bought", "satisfied": "Happy Reviews"})
+    tables["tbl-items"] = _table(D["items"], {
+        "brand": "Brand", "item": "Item", "variant": "Variant",
+        "total_mentions": "Mentions", "request_count": "Requests",
+        "satisfaction_count": "Happy", "regret_count": "Regret",
+        "velocity": "Velocity", "final_score": "Score"}, tbody_id="items-tbody")
+    tables["tbl-trending"] = _table(D["trending"][:20], {
+        "brand": "Brand", "item": "Item", "recent_mentions": "This Period",
+        "prev_mentions": "Last Period", "velocity": "Velocity"})
+    tables["tbl-channels"] = _table(D["channels"], {
+        "channel": "Channel", "total": "Total", "requests": "Buy Requests",
+        "satisfaction": "Happy", "regret": "Missed Opp.",
+        "ownership": "Purchases", "avg_score": "Strength"})
+    tables["tbl-req"] = _table(D["req"][:15], {
+        "brand": "Brand", "item": "Item", "count": "Requests", "avg_score": "Strength"})
+    tables["tbl-sat"] = _table(D["sat"][:15], {
+        "brand": "Brand", "item": "Item", "count": "Reviews", "avg_score": "Strength"})
+    tables["tbl-reg"] = _table(D["reg"][:15], {
+        "brand": "Brand", "item": "Item", "count": "Regret Mentions", "avg_score": "Strength"})
+    tables["tbl-own"] = _table(D["own"][:15], {
+        "brand": "Brand", "item": "Item", "count": "Purchases", "avg_score": "Strength"})
+    return tables
+
+
+def _build_kpis(D):
+    return {
+        "msgs": f"{D['raw']:,}",
+        "mentions": f"{D['mentions']:,}",
+        "brands": str(D["n_brands"]),
+        "items": str(D["n_items"]),
+        "channels": str(D["n_channels"]),
+    }
+
+
+def _build_actions(D):
     actions = []
     if D["unmet"]:
         t = D["unmet"][0]
@@ -201,6 +275,13 @@ def _tab_overview(D):
     if D["cross"]:
         c = D["cross"][0]
         actions.append(f"Bundle {c['brand_a']} + {c['brand_b']} -- {c['shared_users']} customers want both")
+    return actions
+
+
+# ── Tab content (uses data-tf-table containers for swapping) ─────────────
+
+def _tab_overview(D):
+    actions = _build_actions(D)
     p = ['<div class="page-content">']
     p.append(_exp(
         "<strong>Welcome to your Demand Intelligence Dashboard.</strong> "
@@ -210,11 +291,11 @@ def _tab_overview(D):
         "<strong>where the biggest sales opportunities are</strong>. "
         "Every number comes from real conversations in your Discord servers."))
     p.append('<div class="kpi-row">')
-    p.append(_kpi(D["raw"], "Messages Scanned", C["cyan"]))
-    p.append(_kpi(D["mentions"], "Product Mentions", C["green"]))
-    p.append(_kpi(D["n_brands"], "Brands Detected", C["amber"]))
-    p.append(_kpi(D["n_items"], "Item Combinations", C["red"]))
-    p.append(_kpi(D["n_channels"], "Channels Analyzed", C["purple"]))
+    p.append(_kpi(D["raw"], "Messages Scanned", C["cyan"], "msgs"))
+    p.append(_kpi(D["mentions"], "Product Mentions", C["green"], "mentions"))
+    p.append(_kpi(D["n_brands"], "Brands Detected", C["amber"], "brands"))
+    p.append(_kpi(D["n_items"], "Item Combinations", C["red"], "items"))
+    p.append(_kpi(D["n_channels"], "Channels Analyzed", C["purple"], "channels"))
     p.append("</div>")
     p.append(_exp(
         "<strong>Messages Scanned:</strong> Total Discord messages processed. "
@@ -235,7 +316,7 @@ def _tab_overview(D):
         "<strong>Satisfaction</strong> = positive review. "
         "<strong>Regret</strong> = missed opportunity. "
         "<strong>Neutral</strong> = mentioned without clear buying intent.", "purple"))
-    p.append(_act("Top Actions Based on Your Data", actions))
+    p.append(f'<div id="act-overview">{_act("Top Actions Based on Your Data", actions)}</div>')
     p.append("</div>")
     return "\n".join(p)
 
@@ -250,10 +331,12 @@ def _tab_stock(D):
         "the bigger your opportunity.", "red"))
     p.append(_sec("Unmet Demand -- Items People Want but Cannot Get",
                    "Sorted by demand gap. Higher gap = bigger opportunity."))
+    p.append('<div id="wrap-tbl-unmet">')
     p.append(_table(D["unmet"][:20], {
         "brand": "Brand", "item": "Item", "requests": "People Asking",
         "owned": "People Who Have It", "demand_gap": "Unmet Gap",
         "unique_requesters": "Unique Buyers"}))
+    p.append('</div>')
     p.append(_sec("Inventory Recommendations",
                    "AI-prioritized stocking suggestions based on all demand signals."))
     p.append(_exp(
@@ -261,9 +344,11 @@ def _tab_stock(D):
         "<strong>HIGH</strong> = 10+ unmet requests, stock immediately. "
         "<strong>MEDIUM</strong> = 5-9 unmet, strong opportunity. "
         "<strong>LOW</strong> = 2-4 unmet, worth watching.", "amber"))
+    p.append('<div id="wrap-tbl-inv">')
     p.append(_table(D["inv"][:15], {
         "priority": "Priority", "brand": "Brand", "item": "Item",
         "demand_gap": "Demand Gap", "notes": "Why"}))
+    p.append('</div>')
     p.append('<div class="two-col">')
     p.append(_chart("fig-sizes", "Most Requested Sizes",
                      "Blue = people asking. Green = people who own it."))
@@ -299,26 +384,32 @@ def _tab_customers(D):
         "<strong>Buy Ratio</strong> = what % of requests turned into purchases. "
         "0.50 means half their asks led to buying. "
         "Low ratio + high requests = target with offers.", "amber"))
+    p.append('<div id="wrap-tbl-profiles">')
     p.append(_table(D["profiles_flat"][:50], {
         "user": "Username", "segment": "Segment", "requests": "Requests",
         "owned": "Purchased", "satisfied": "Happy Reviews",
         "regrets": "Missed Items", "buy_ratio": "Buy Ratio"}))
+    p.append('</div>')
     p.append(_sec("Cross-Sell Opportunities",
                    "Brands the same customers discuss -- bundle these for higher sales."))
     p.append(_exp(
         "<strong>Cross-sell:</strong> "
         "If someone likes Brand A, they likely want Brand B too. "
         "Use this to create bundles or plan inventory together.", "purple"))
+    p.append('<div id="wrap-tbl-cross">')
     p.append(_table(D["cross"][:15], {
         "brand_a": "Brand A", "brand_b": "Brand B",
         "shared_users": "Customers in Common"}))
+    p.append('</div>')
     p.append(_sec("Conversions (Request to Purchase)",
                    "People who asked about a brand AND later bought it."))
     p.append(_exp(
         "High conversion brands are safer to stock heavily -- proven demand.", "green"))
+    p.append('<div id="wrap-tbl-conv">')
     p.append(_table(D["conv"][:15], {
         "author": "Customer", "brand": "Brand", "requests": "Times Asked",
         "owned": "Times Bought", "satisfied": "Happy Reviews"}))
+    p.append('</div>')
     p.append("</div>")
     return "\n".join(p)
 
@@ -334,11 +425,13 @@ def _tab_explorer(D):
     p.append('<div class="search-input" style="margin-bottom:16px">'
              '<input id="item-search" type="text" '
              'placeholder="Type a brand or item name to filter..."></div>')
+    p.append('<div id="wrap-tbl-items">')
     p.append(_table(D["items"], {
         "brand": "Brand", "item": "Item", "variant": "Variant",
         "total_mentions": "Mentions", "request_count": "Requests",
         "satisfaction_count": "Happy", "regret_count": "Regret",
         "velocity": "Velocity", "final_score": "Score"}, tbody_id="items-tbody"))
+    p.append('</div>')
     p.append("</div>")
     return "\n".join(p)
 
@@ -357,9 +450,11 @@ def _tab_trends(D):
         "<strong>Velocity</strong> measures momentum. "
         "<strong>+2.0x</strong> means 3x more mentions than last period. "
         "High velocity + high requests = about to blow up.", "amber"))
+    p.append('<div id="wrap-tbl-trending">')
     p.append(_table(D["trending"][:20], {
         "brand": "Brand", "item": "Item", "recent_mentions": "This Period",
         "prev_mentions": "Last Period", "velocity": "Velocity"}))
+    p.append('</div>')
     p.append(_chart("fig-season", "Monthly Activity Patterns",
                      "Seasonal trends -- use this to plan inventory for busy months."))
     p.append("</div>")
@@ -385,10 +480,12 @@ def _tab_channels(D):
         "Yellow/red = lower intent (general chat). "
         "Prioritize green channels for stocking decisions.", "green"))
     p.append(_sec("Full Channel Data"))
+    p.append('<div id="wrap-tbl-channels">')
     p.append(_table(D["channels"], {
         "channel": "Channel", "total": "Total", "requests": "Buy Requests",
         "satisfaction": "Happy", "regret": "Missed Opp.",
         "ownership": "Purchases", "avg_score": "Strength"}))
+    p.append('</div>')
     p.append("</div>")
     return "\n".join(p)
 
@@ -404,27 +501,35 @@ def _tab_signals(D):
         f'<strong style="color:{ac}">Ownership</strong> -- Just received it.'))
     p.append('<div class="two-col"><div>')
     p.append(_sec("Most Requested (People Want These)"))
+    p.append('<div id="wrap-tbl-req">')
     p.append(_table(D["req"][:15], {
         "brand": "Brand", "item": "Item", "count": "Requests", "avg_score": "Strength"}))
+    p.append('</div>')
     p.append("</div><div>")
     p.append(_sec("Most Loved (High Satisfaction)"))
+    p.append('<div id="wrap-tbl-sat">')
     p.append(_table(D["sat"][:15], {
         "brand": "Brand", "item": "Item", "count": "Reviews", "avg_score": "Strength"}))
+    p.append('</div>')
     p.append("</div></div>")
     p.append('<div class="two-col"><div>')
     p.append(_sec("Missed Opportunities (Regret)"))
     p.append(_exp(
         "High regret = people want these but missed out. "
         "Stock them to capture pent-up demand.", "red"))
+    p.append('<div id="wrap-tbl-reg">')
     p.append(_table(D["reg"][:15], {
         "brand": "Brand", "item": "Item", "count": "Regret Mentions", "avg_score": "Strength"}))
+    p.append('</div>')
     p.append("</div><div>")
     p.append(_sec("Recently Purchased (Ownership)"))
     p.append(_exp(
         "Items people are actively buying. High ownership + high satisfaction "
         "= safe to keep stocking.", "green"))
+    p.append('<div id="wrap-tbl-own">')
     p.append(_table(D["own"][:15], {
         "brand": "Brand", "item": "Item", "count": "Purchases", "avg_score": "Strength"}))
+    p.append('</div>')
     p.append("</div></div></div>")
     return "\n".join(p)
 
@@ -432,6 +537,7 @@ def _tab_signals(D):
 # ── Page assembly ─────────────────────────────────────────────────────────
 
 JS = r"""
+// Tab switching
 document.querySelectorAll('#tabs .tab').forEach(btn=>{
   btn.addEventListener('click',()=>{
     document.querySelectorAll('#tabs .tab').forEach(b=>b.classList.remove('tab--selected'));
@@ -440,44 +546,107 @@ document.querySelectorAll('#tabs .tab').forEach(btn=>{
     document.getElementById('tab-'+btn.dataset.tab).style.display='';
   });
 });
-Object.entries(FIGURES).forEach(([id,fig])=>{
-  const el=document.getElementById(id);
-  if(el)Plotly.newPlot(el,fig.data,fig.layout,{displayModeBar:false,responsive:true});
-});
+
+// Render charts for current timeframe
+function renderCharts(tf) {
+  const figs = DATA[tf].figures;
+  Object.entries(figs).forEach(([id,fig])=>{
+    const el=document.getElementById(id);
+    if(el)Plotly.react(el,fig.data,fig.layout,{displayModeBar:false,responsive:true});
+  });
+}
+
+// Update KPIs
+function updateKPIs(tf) {
+  const kpis = DATA[tf].kpis;
+  document.querySelectorAll('[data-kpi]').forEach(el=>{
+    const key = el.dataset.kpi;
+    if(kpis[key] !== undefined) el.textContent = kpis[key];
+  });
+  // Header stats
+  const hs = document.querySelectorAll('.header-stat .num');
+  if(hs[0]) hs[0].textContent = kpis.msgs || '';
+  if(hs[1]) hs[1].textContent = kpis.mentions || '';
+  if(hs[2]) hs[2].textContent = kpis.brands || '';
+}
+
+// Update tables
+function updateTables(tf) {
+  const tables = DATA[tf].tables;
+  Object.entries(tables).forEach(([id,html])=>{
+    const el = document.getElementById('wrap-'+id);
+    if(el) el.innerHTML = html;
+  });
+  // Update actions
+  const actEl = document.getElementById('act-overview');
+  if(actEl && DATA[tf].actions !== undefined) actEl.innerHTML = DATA[tf].actions;
+  // Re-bind sort handlers
+  bindSortHandlers();
+}
+
+// Timeframe change handler
+function switchTimeframe(tf) {
+  updateKPIs(tf);
+  renderCharts(tf);
+  updateTables(tf);
+}
+
+// Timeframe dropdown
+const tfSelect = document.getElementById('tf-select');
+if(tfSelect) {
+  tfSelect.addEventListener('change', function() {
+    switchTimeframe(this.value);
+  });
+}
+
+// Item search
 const si=document.getElementById('item-search');
 if(si){si.addEventListener('input',e=>{
   const t=e.target.value.toLowerCase();
-  document.querySelectorAll('#items-tbody tr').forEach(r=>{
+  const tbody = document.getElementById('items-tbody');
+  if(!tbody) return;
+  Array.from(tbody.rows).forEach(r=>{
     r.style.display=r.textContent.toLowerCase().includes(t)?'':'none';
   });
 });}
-document.querySelectorAll('th[data-sort]').forEach(th=>{
-  th.addEventListener('click',()=>{
-    const tb=th.closest('table').querySelector('tbody');
-    const rows=Array.from(tb.rows);
-    const i=Array.from(th.parentNode.children).indexOf(th);
-    const asc=th.dataset.dir!=='asc';th.dataset.dir=asc?'asc':'desc';
-    rows.sort((a,b)=>{
-      const av=a.cells[i]?.textContent||'',bv=b.cells[i]?.textContent||'';
-      const an=parseFloat(av),bn=parseFloat(bv);
-      if(!isNaN(an)&&!isNaN(bn))return asc?an-bn:bn-an;
-      return asc?av.localeCompare(bv):bv.localeCompare(av);
+
+// Table sorting
+function bindSortHandlers() {
+  document.querySelectorAll('th[data-sort]').forEach(th=>{
+    if(th._sortBound) return;
+    th._sortBound = true;
+    th.addEventListener('click',()=>{
+      const tb=th.closest('table').querySelector('tbody');
+      const rows=Array.from(tb.rows);
+      const i=Array.from(th.parentNode.children).indexOf(th);
+      const asc=th.dataset.dir!=='asc';th.dataset.dir=asc?'asc':'desc';
+      rows.sort((a,b)=>{
+        const av=a.cells[i]?.textContent||'',bv=b.cells[i]?.textContent||'';
+        const an=parseFloat(av),bn=parseFloat(bv);
+        if(!isNaN(an)&&!isNaN(bn))return asc?an-bn:bn-an;
+        return asc?av.localeCompare(bv):bv.localeCompare(av);
+      });
+      rows.forEach(r=>tb.appendChild(r));
     });
-    rows.forEach(r=>tb.appendChild(r));
   });
-});
+}
+
+// Initial render
+renderCharts('all');
+bindSortHandlers();
 """
 
 
-def _build_page(D, figures):
+def _build_page(all_data, default_data):
+    """Build the full HTML page with all timeframe data embedded."""
     tabs = [
-        ("overview", "Overview", _tab_overview(D)),
-        ("stock", "What to Stock", _tab_stock(D)),
-        ("customers", "Customer Insights", _tab_customers(D)),
-        ("explorer", "Item Explorer", _tab_explorer(D)),
-        ("trends", "Market Trends", _tab_trends(D)),
-        ("channels", "Channel Analysis", _tab_channels(D)),
-        ("signals", "Demand Signals", _tab_signals(D)),
+        ("overview", "Overview", _tab_overview(default_data)),
+        ("stock", "What to Stock", _tab_stock(default_data)),
+        ("customers", "Customer Insights", _tab_customers(default_data)),
+        ("explorer", "Item Explorer", _tab_explorer(default_data)),
+        ("trends", "Market Trends", _tab_trends(default_data)),
+        ("channels", "Channel Analysis", _tab_channels(default_data)),
+        ("signals", "Demand Signals", _tab_signals(default_data)),
     ]
     nav = ""
     for i, (tid, label, _) in enumerate(tabs):
@@ -487,7 +656,15 @@ def _build_page(D, figures):
     for i, (tid, _, content) in enumerate(tabs):
         disp = "" if i == 0 else ' style="display:none"'
         panels += f'<section id="tab-{tid}" class="tab-panel"{disp}>\n{content}\n</section>\n'
-    fj = json.dumps(figures, separators=(",", ":"))
+
+    tf_options = ""
+    for tf_key, _ in TIMEFRAMES:
+        label = "All Time" if tf_key == "all" else tf_key.upper().replace("D", " Days")
+        sel = " selected" if tf_key == "all" else ""
+        tf_options += f'<option value="{tf_key}"{sel}>{label}</option>'
+
+    data_json = json.dumps(all_data, separators=(",", ":"))
+
     return f"""<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -501,10 +678,15 @@ def _build_page(D, figures):
 <body>
 <header class="site-header">
 <div><h1>ZR ItemFinder</h1><div class="subtitle">Demand Intelligence for Resellers</div></div>
+<div style="display:flex;align-items:center;gap:12px">
+<select id="tf-select" style="padding:8px 12px;border-radius:8px;border:1px solid var(--border);background:var(--bg-surface);color:var(--text-primary);font-size:0.85rem;font-family:inherit;cursor:pointer">
+{tf_options}
+</select>
+</div>
 <div class="header-stats">
-<div class="header-stat"><div class="num">{D["raw"]:,}</div><div class="lbl">Messages</div></div>
-<div class="header-stat"><div class="num">{D["mentions"]:,}</div><div class="lbl">Mentions</div></div>
-<div class="header-stat"><div class="num">{D["n_brands"]}</div><div class="lbl">Brands</div></div>
+<div class="header-stat"><div class="num">{default_data["raw"]:,}</div><div class="lbl">Messages</div></div>
+<div class="header-stat"><div class="num">{default_data["mentions"]:,}</div><div class="lbl">Mentions</div></div>
+<div class="header-stat"><div class="num">{default_data["n_brands"]}</div><div class="lbl">Brands</div></div>
 </div>
 </header>
 <nav class="custom-tabs" id="tabs">{nav}</nav>
@@ -513,7 +695,7 @@ def _build_page(D, figures):
 <p style="color:var(--text-muted);font-size:0.75rem;text-align:center;padding:20px 0">
 ZR ItemFinder v1.0 &mdash; Data from Discord community analysis</p>
 </footer>
-<script>const FIGURES={fj};{JS}</script>
+<script>const DATA={data_json};{JS}</script>
 </body>
 </html>"""
 
@@ -521,16 +703,37 @@ ZR ItemFinder v1.0 &mdash; Data from Discord community analysis</p>
 # ── Build command ─────────────────────────────────────────────────────────
 
 def build():
-    log.info("Loading data...")
-    D = _load()
-    log.info(f"  {D['raw']:,} messages, {D['mentions']:,} mentions, {D['n_brands']} brands")
+    log.info("Loading data for all timeframes...")
+    now = datetime.now()
 
-    log.info("Building Plotly figures...")
-    figures = _build_figures(D)
-    log.info(f"  {len(figures)} charts")
+    all_tf_data = {}
+    default_data = None
+
+    for tf_key, days in TIMEFRAMES:
+        since = (now - timedelta(days=days)).isoformat() if days else None
+        label = tf_key
+        log.info(f"  Loading {label}...")
+        D = _load(since)
+
+        figures = _build_figures(D)
+        tables = _build_tables(D)
+        kpis = _build_kpis(D)
+        actions_html = _act("Top Actions Based on Your Data", _build_actions(D))
+
+        all_tf_data[tf_key] = {
+            "figures": figures,
+            "tables": tables,
+            "kpis": kpis,
+            "actions": actions_html,
+        }
+
+        if tf_key == "all":
+            default_data = D
+
+    log.info(f"  {sum(len(v['figures']) for v in all_tf_data.values())} total charts across {len(TIMEFRAMES)} timeframes")
 
     log.info("Generating HTML...")
-    html = _build_page(D, figures)
+    html = _build_page(all_tf_data, default_data)
 
     DIST.mkdir(parents=True, exist_ok=True)
     (DIST / "assets").mkdir(exist_ok=True)

@@ -8,20 +8,24 @@ from src.common.log_util import get_logger
 log = get_logger("sales_intel")
 
 
-def unmet_demand(conn: sqlite3.Connection, min_requests: int = 3) -> list[dict]:
+def unmet_demand(conn: sqlite3.Connection, min_requests: int = 3,
+                 since: str | None = None) -> list[dict]:
     """Items people request but rarely own — biggest sales opportunities."""
-    rows = conn.execute("""
+    since_clause = " AND timestamp >= ?" if since else ""
+    params = ([since] if since else []) + [min_requests]
+    rows = conn.execute(f"""
         SELECT brand, item,
                SUM(CASE WHEN intent_type='request' THEN 1 ELSE 0 END) as requests,
                SUM(CASE WHEN intent_type='ownership' THEN 1 ELSE 0 END) as owned,
                SUM(CASE WHEN intent_type='satisfaction' THEN 1 ELSE 0 END) as satisfied,
                COUNT(DISTINCT author) as unique_users
         FROM processed_mentions
-        WHERE brand IS NOT NULL OR item IS NOT NULL
+        WHERE (brand IS NOT NULL OR item IS NOT NULL)
+        {since_clause}
         GROUP BY brand, item
         HAVING requests >= ?
         ORDER BY requests DESC
-    """, (min_requests,)).fetchall()
+    """, params).fetchall()
 
     results = []
     for r in rows:
@@ -41,9 +45,12 @@ def unmet_demand(conn: sqlite3.Connection, min_requests: int = 3) -> list[dict]:
     return results
 
 
-def buyer_profiles(conn: sqlite3.Connection, min_activity: int = 10) -> list[dict]:
+def buyer_profiles(conn: sqlite3.Connection, min_activity: int = 10,
+                   since: str | None = None) -> list[dict]:
     """Profile top users: what they want, what they own, brand preferences."""
-    rows = conn.execute("""
+    where = "WHERE timestamp >= ?" if since else ""
+    having_params = ([since] if since else []) + [min_activity]
+    rows = conn.execute(f"""
         SELECT author,
                COUNT(*) as total_mentions,
                SUM(CASE WHEN intent_type='request' THEN 1 ELSE 0 END) as requests,
@@ -51,28 +58,34 @@ def buyer_profiles(conn: sqlite3.Connection, min_activity: int = 10) -> list[dic
                SUM(CASE WHEN intent_type='satisfaction' THEN 1 ELSE 0 END) as satisfied,
                SUM(CASE WHEN intent_type='regret' THEN 1 ELSE 0 END) as regrets
         FROM processed_mentions
+        {where}
         GROUP BY author
         HAVING total_mentions >= ?
         ORDER BY requests DESC
-    """, (min_activity,)).fetchall()
+    """, having_params).fetchall()
+
+    since_clause = " AND timestamp >= ?" if since else ""
+    since_params = [since] if since else []
 
     profiles = []
     for r in rows:
         # Get top brands for this user
-        brand_rows = conn.execute("""
+        brand_rows = conn.execute(f"""
             SELECT brand, COUNT(*) as cnt FROM processed_mentions
             WHERE author = ? AND brand IS NOT NULL
+            {since_clause}
             GROUP BY brand ORDER BY cnt DESC LIMIT 5
-        """, (r["author"],)).fetchall()
+        """, [r["author"]] + since_params).fetchall()
         top_brands = [{"brand": b["brand"], "count": b["cnt"]} for b in brand_rows]
 
         # Get top requested items
-        item_rows = conn.execute("""
+        item_rows = conn.execute(f"""
             SELECT brand, item, COUNT(*) as cnt FROM processed_mentions
             WHERE author = ? AND intent_type = 'request'
                 AND (brand IS NOT NULL OR item IS NOT NULL)
+            {since_clause}
             GROUP BY brand, item ORDER BY cnt DESC LIMIT 5
-        """, (r["author"],)).fetchall()
+        """, [r["author"]] + since_params).fetchall()
         top_requests = [
             {"brand": i["brand"] or "—", "item": i["item"] or "—", "count": i["cnt"]}
             for i in item_rows
@@ -107,13 +120,17 @@ def _segment_user(requests: int, owned: int, buy_ratio: float) -> str:
     return "casual"
 
 
-def brand_cross_sell(conn: sqlite3.Connection, min_overlap: int = 5) -> list[dict]:
+def brand_cross_sell(conn: sqlite3.Connection, min_overlap: int = 5,
+                     since: str | None = None) -> list[dict]:
     """Find brands frequently mentioned by the same users (cross-sell opportunities)."""
-    rows = conn.execute("""
+    since_clause = " AND timestamp >= ?" if since else ""
+    params = [since] if since else []
+    rows = conn.execute(f"""
         SELECT author, brand FROM processed_mentions
         WHERE brand IS NOT NULL
+        {since_clause}
         GROUP BY author, brand
-    """).fetchall()
+    """, params).fetchall()
 
     user_brands: dict[str, set] = defaultdict(set)
     for r in rows:
@@ -134,14 +151,18 @@ def brand_cross_sell(conn: sqlite3.Connection, min_overlap: int = 5) -> list[dic
     return results[:30]
 
 
-def size_demand(conn: sqlite3.Connection) -> list[dict]:
+def size_demand(conn: sqlite3.Connection,
+                since: str | None = None) -> list[dict]:
     """Analyze which sizes are most requested."""
-    rows = conn.execute("""
+    since_clause = " AND timestamp >= ?" if since else ""
+    params = [since] if since else []
+    rows = conn.execute(f"""
         SELECT variant, intent_type, COUNT(*) as cnt
         FROM processed_mentions
         WHERE variant IS NOT NULL
+        {since_clause}
         GROUP BY variant, intent_type
-    """).fetchall()
+    """, params).fetchall()
 
     size_data: dict[str, dict] = defaultdict(lambda: {"requests": 0, "owned": 0, "total": 0})
     for r in rows:
@@ -165,14 +186,18 @@ def size_demand(conn: sqlite3.Connection) -> list[dict]:
     return results
 
 
-def color_demand(conn: sqlite3.Connection) -> list[dict]:
+def color_demand(conn: sqlite3.Connection,
+                 since: str | None = None) -> list[dict]:
     """Analyze which colors are most in demand."""
-    rows = conn.execute("""
+    since_clause = " AND timestamp >= ?" if since else ""
+    params = [since] if since else []
+    rows = conn.execute(f"""
         SELECT variant, intent_type, COUNT(*) as cnt
         FROM processed_mentions
         WHERE variant IS NOT NULL
+        {since_clause}
         GROUP BY variant, intent_type
-    """).fetchall()
+    """, params).fetchall()
 
     color_data: dict[str, dict] = defaultdict(lambda: {"requests": 0, "owned": 0, "total": 0})
     for r in rows:
@@ -196,11 +221,12 @@ def color_demand(conn: sqlite3.Connection) -> list[dict]:
     return results
 
 
-def inventory_recommendations(conn: sqlite3.Connection) -> list[dict]:
+def inventory_recommendations(conn: sqlite3.Connection,
+                              since: str | None = None) -> list[dict]:
     """Generate specific inventory recommendations based on demand signals."""
-    unmet = unmet_demand(conn, min_requests=3)
-    sizes = size_demand(conn)
-    colors = color_demand(conn)
+    unmet = unmet_demand(conn, min_requests=3, since=since)
+    sizes = size_demand(conn, since=since)
+    colors = color_demand(conn, since=since)
 
     top_sizes = [s["size"] for s in sizes[:5]]
     top_colors = [c["color"] for c in colors[:5]]
@@ -235,9 +261,12 @@ def _generate_rec_note(item: dict) -> str:
     return "; ".join(parts) if parts else "Steady demand"
 
 
-def monthly_seasonality(conn: sqlite3.Connection) -> list[dict]:
+def monthly_seasonality(conn: sqlite3.Connection,
+                        since: str | None = None) -> list[dict]:
     """Monthly mention volumes for seasonality analysis."""
-    rows = conn.execute("""
+    since_clause = " AND timestamp >= ?" if since else ""
+    params = [since] if since else []
+    rows = conn.execute(f"""
         SELECT strftime('%Y-%m', timestamp) as month,
                COUNT(*) as total,
                SUM(CASE WHEN intent_type='request' THEN 1 ELSE 0 END) as requests,
@@ -245,22 +274,27 @@ def monthly_seasonality(conn: sqlite3.Connection) -> list[dict]:
                COUNT(DISTINCT author) as unique_users
         FROM processed_mentions
         WHERE month IS NOT NULL
+        {since_clause}
         GROUP BY month ORDER BY month
-    """).fetchall()
+    """, params).fetchall()
     return [dict(r) for r in rows]
 
 
-def conversion_tracking(conn: sqlite3.Connection) -> list[dict]:
+def conversion_tracking(conn: sqlite3.Connection,
+                        since: str | None = None) -> list[dict]:
     """Users who requested a brand AND later owned it — shows conversion."""
-    rows = conn.execute("""
+    since_clause = " AND timestamp >= ?" if since else ""
+    params = [since] if since else []
+    rows = conn.execute(f"""
         SELECT author, brand,
                SUM(CASE WHEN intent_type='request' THEN 1 ELSE 0 END) as requests,
                SUM(CASE WHEN intent_type='ownership' THEN 1 ELSE 0 END) as owned,
                SUM(CASE WHEN intent_type='satisfaction' THEN 1 ELSE 0 END) as satisfied
         FROM processed_mentions
         WHERE brand IS NOT NULL
+        {since_clause}
         GROUP BY author, brand
         HAVING requests >= 2 AND owned >= 1
         ORDER BY requests DESC
-    """).fetchall()
+    """, params).fetchall()
     return [dict(r) for r in rows[:30]]

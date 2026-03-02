@@ -24,14 +24,18 @@ def _channel_weight(channel: str) -> float:
     return DEFAULT_CHANNEL_WEIGHT
 
 
-def compute_item_scores(conn: sqlite3.Connection) -> list[dict]:
+def compute_item_scores(conn: sqlite3.Connection,
+                        since: str | None = None) -> list[dict]:
     """Compute final demand score for every (brand, item) pair."""
 
-    rows = conn.execute("""
+    since_clause = " AND timestamp >= ?" if since else ""
+    params = [since] if since else []
+    rows = conn.execute(f"""
         SELECT brand, item, variant, intent_type, intent_score, channel, timestamp
         FROM processed_mentions
-        WHERE brand IS NOT NULL OR item IS NOT NULL
-    """).fetchall()
+        WHERE (brand IS NOT NULL OR item IS NOT NULL)
+        {since_clause}
+    """, params).fetchall()
 
     if not rows:
         log.warning("No processed mentions to score")
@@ -40,6 +44,8 @@ def compute_item_scores(conn: sqlite3.Connection) -> list[dict]:
     # Find the latest timestamp for trend calculation
     max_ts_row = conn.execute(
         "SELECT MAX(timestamp) FROM processed_mentions"
+        + (" WHERE timestamp >= ?" if since else ""),
+        params,
     ).fetchone()
     if max_ts_row and max_ts_row[0]:
         try:
@@ -141,19 +147,25 @@ def compute_item_scores(conn: sqlite3.Connection) -> list[dict]:
     return results
 
 
-def compute_brand_scores(conn: sqlite3.Connection) -> list[dict]:
+def compute_brand_scores(conn: sqlite3.Connection,
+                         since: str | None = None) -> list[dict]:
     """Compute aggregate scores per brand."""
-    rows = conn.execute("""
+    since_clause = " AND timestamp >= ?" if since else ""
+    params = [since] if since else []
+    rows = conn.execute(f"""
         SELECT brand, intent_type, intent_score, channel, timestamp
         FROM processed_mentions
         WHERE brand IS NOT NULL
-    """).fetchall()
+        {since_clause}
+    """, params).fetchall()
 
     if not rows:
         return []
 
     max_ts_row = conn.execute(
         "SELECT MAX(timestamp) FROM processed_mentions WHERE brand IS NOT NULL"
+        + (" AND timestamp >= ?" if since else ""),
+        params,
     ).fetchone()
     if max_ts_row and max_ts_row[0]:
         try:
