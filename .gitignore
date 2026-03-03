@@ -7,6 +7,10 @@ build/
 
 # Database
 data/app.db
+data/mentions.db
+
+# Proxies (credentials)
+proxies/
 
 # Generated outputs (regenerable)
 out/
