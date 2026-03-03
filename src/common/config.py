@@ -228,17 +228,28 @@ TREND_WINDOW_DAYS = 7
 # Reddit configuration
 # ---------------------------------------------------------------------------
 REDDIT_TARGET_SUBREDDITS = [
-    "BigBoiRepFashion",
-    "BudgetBatch",
-    "CloseToRetail",
-    "DesignerReps",
+    # Core fashion rep communities (highest signal)
     "FashionReps",
+    "DesignerReps",
     "FashionRepsBST",
+    "QualityReps",
+    "RepFashion",
+    "LuxuryReps",
+    # Sneaker rep communities
+    "Repsneakers",
+    "sneakerreps",
     "repbudgetsneakers",
+    "TheWorldOfRepsneakers",
+    # Niche / size-specific
+    "BigBoiRepFashion",
+    "CloseToRetail",
+    "BudgetBatch",
+    "weidianwarriors",
+    # Budget / marketplace
+    "DHgate",
+    # Shipping agents (secondary signal)
     "Sugargoo",
     "Superbuy",
-    "TheWorldOfRepsneakers",
-    "weidianwarriors",
     "cssbuy",
     "MulebuyCommunity",
     "AllChinabuy",
@@ -250,6 +261,12 @@ SUBREDDIT_WEIGHTS: dict[str, float] = {
     "fashionreps": 1.5,
     "designerreps": 1.5,
     "fashionrepsbst": 1.4,  # buy/sell/trade = strong intent
+    "qualityreps": 1.5,     # high-quality rep discussion
+    "repsneakers": 1.5,     # 969K subs, massive sneaker community
+    "sneakerreps": 1.4,     # 311K subs, sneaker reps
+    "repfashion": 1.3,      # general rep fashion
+    "luxuryreps": 1.3,      # luxury-focused
+    "dhgate": 1.2,          # budget finds, strong demand signals
     "repbudgetsneakers": 1.3,
     "bigboirepfashion": 1.3,  # size-specific demand
     "closetoretail": 1.3,    # quality-focused demand

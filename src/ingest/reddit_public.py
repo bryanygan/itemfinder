@@ -38,9 +38,9 @@ log = get_logger("reddit_public")
 # ---------------------------------------------------------------------------
 _USER_AGENT = "itemfinder:demand-intel:v1.0 (research bot)"
 _BASE_URL = "https://www.reddit.com"
-_REQUEST_DELAY = 3.0  # seconds between requests (respectful for unauthenticated)
-_RATE_LIMIT_DELAY = 10.0  # extra wait on 429
-_MAX_RETRIES = 4
+_REQUEST_DELAY = 4.0  # seconds between requests (respectful for unauthenticated)
+_RATE_LIMIT_DELAY = 30.0  # extra wait on 429 (generous to clear rate limits)
+_MAX_RETRIES = 6
 _BACKOFF_FACTOR = 2.0
 _TIMEOUT = 30
 
@@ -197,7 +197,7 @@ def _fetch_post_comments(subreddit: str, post_id: str) -> list[dict]:
 # Row conversion (maps to existing DB schema)
 # ---------------------------------------------------------------------------
 def _post_to_rows(post: dict, subreddit: str):
-    """Convert a Reddit post JSON → (raw_row, meta_row) for DB insertion."""
+    """Convert a Reddit post JSON -> (raw_row, meta_row) for DB insertion."""
     title = post.get("title", "")
     selftext = post.get("selftext", "")
     content = f"{title}\n\n{selftext}".strip() if selftext else title.strip()
@@ -242,7 +242,7 @@ def _post_to_rows(post: dict, subreddit: str):
 
 
 def _comment_to_rows(comment: dict, subreddit: str, sub_id: str, op_author: str):
-    """Convert a Reddit comment JSON → (raw_row, meta_row)."""
+    """Convert a Reddit comment JSON -> (raw_row, meta_row)."""
     body = comment.get("body", "")
     cid = comment.get("id", "")
     if not cid or not body or body in ("[deleted]", "[removed]"):
@@ -355,7 +355,7 @@ def collect_subreddit(
         f"{_BASE_URL}/r/{subreddit}/new.json", cutoff_ts
     )
     _ingest_posts(new_posts)
-    log.info(f"  [{subreddit}] /new → {len(new_posts)} posts")
+    log.info(f"  [{subreddit}] /new -> {len(new_posts)} posts")
 
     # --- 2. /top (high-signal) ---
     log.info(f"  [{subreddit}] Fetching /top?t={time_param}...")
@@ -365,7 +365,7 @@ def collect_subreddit(
     before = stats["submissions"]
     _ingest_posts(top_posts)
     log.info(
-        f"  [{subreddit}] /top → {len(top_posts)} posts "
+        f"  [{subreddit}] /top -> {len(top_posts)} posts "
         f"(+{stats['submissions'] - before} new)"
     )
 
@@ -414,7 +414,7 @@ def collect_subreddit(
             if (i + 1) % 25 == 0:
                 log.info(
                     f"  [{subreddit}] Comments progress: "
-                    f"{i + 1}/{to_fetch} posts → {stats['comments']} comments"
+                    f"{i + 1}/{to_fetch} posts -> {stats['comments']} comments"
                 )
 
         _flush()
