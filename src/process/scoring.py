@@ -25,16 +25,18 @@ def _channel_weight(channel: str) -> float:
 
 
 def compute_item_scores(conn: sqlite3.Connection,
-                        since: str | None = None) -> list[dict]:
+                        since: str | None = None,
+                        platform: str | None = None) -> list[dict]:
     """Compute final demand score for every (brand, item) pair."""
 
     since_clause = " AND timestamp >= ?" if since else ""
-    params = [since] if since else []
+    plat_clause = " AND message_id IN (SELECT id FROM raw_messages WHERE source_platform = ?)" if platform else ""
+    params = ([platform] if platform else []) + ([since] if since else [])
     rows = conn.execute(f"""
         SELECT brand, item, variant, intent_type, intent_score, channel, timestamp
         FROM processed_mentions
         WHERE (brand IS NOT NULL OR item IS NOT NULL)
-        {since_clause}
+        {plat_clause}{since_clause}
     """, params).fetchall()
 
     if not rows:
@@ -42,10 +44,17 @@ def compute_item_scores(conn: sqlite3.Connection,
         return []
 
     # Find the latest timestamp for trend calculation
+    mt_parts, mt_params = [], []
+    if platform:
+        mt_parts.append("message_id IN (SELECT id FROM raw_messages WHERE source_platform = ?)")
+        mt_params.append(platform)
+    if since:
+        mt_parts.append("timestamp >= ?")
+        mt_params.append(since)
+    mt_where = " WHERE " + " AND ".join(mt_parts) if mt_parts else ""
     max_ts_row = conn.execute(
-        "SELECT MAX(timestamp) FROM processed_mentions"
-        + (" WHERE timestamp >= ?" if since else ""),
-        params,
+        f"SELECT MAX(timestamp) FROM processed_mentions{mt_where}",
+        mt_params,
     ).fetchone()
     if max_ts_row and max_ts_row[0]:
         try:
@@ -148,24 +157,33 @@ def compute_item_scores(conn: sqlite3.Connection,
 
 
 def compute_brand_scores(conn: sqlite3.Connection,
-                         since: str | None = None) -> list[dict]:
+                         since: str | None = None,
+                         platform: str | None = None) -> list[dict]:
     """Compute aggregate scores per brand."""
     since_clause = " AND timestamp >= ?" if since else ""
-    params = [since] if since else []
+    plat_clause = " AND message_id IN (SELECT id FROM raw_messages WHERE source_platform = ?)" if platform else ""
+    params = ([platform] if platform else []) + ([since] if since else [])
     rows = conn.execute(f"""
         SELECT brand, intent_type, intent_score, channel, timestamp
         FROM processed_mentions
         WHERE brand IS NOT NULL
-        {since_clause}
+        {plat_clause}{since_clause}
     """, params).fetchall()
 
     if not rows:
         return []
 
+    mt_parts = ["brand IS NOT NULL"]
+    mt_params = []
+    if platform:
+        mt_parts.append("message_id IN (SELECT id FROM raw_messages WHERE source_platform = ?)")
+        mt_params.append(platform)
+    if since:
+        mt_parts.append("timestamp >= ?")
+        mt_params.append(since)
     max_ts_row = conn.execute(
-        "SELECT MAX(timestamp) FROM processed_mentions WHERE brand IS NOT NULL"
-        + (" AND timestamp >= ?" if since else ""),
-        params,
+        "SELECT MAX(timestamp) FROM processed_mentions WHERE " + " AND ".join(mt_parts),
+        mt_params,
     ).fetchone()
     if max_ts_row and max_ts_row[0]:
         try:

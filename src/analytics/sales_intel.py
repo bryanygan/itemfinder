@@ -9,10 +9,12 @@ log = get_logger("sales_intel")
 
 
 def unmet_demand(conn: sqlite3.Connection, min_requests: int = 3,
-                 since: str | None = None) -> list[dict]:
+                 since: str | None = None,
+                 platform: str | None = None) -> list[dict]:
     """Items people request but rarely own — biggest sales opportunities."""
     since_clause = " AND timestamp >= ?" if since else ""
-    params = ([since] if since else []) + [min_requests]
+    plat_clause = " AND message_id IN (SELECT id FROM raw_messages WHERE source_platform = ?)" if platform else ""
+    params = ([platform] if platform else []) + ([since] if since else []) + [min_requests]
     rows = conn.execute(f"""
         SELECT brand, item,
                SUM(CASE WHEN intent_type='request' THEN 1 ELSE 0 END) as requests,
@@ -21,7 +23,7 @@ def unmet_demand(conn: sqlite3.Connection, min_requests: int = 3,
                COUNT(DISTINCT author) as unique_users
         FROM processed_mentions
         WHERE (brand IS NOT NULL OR item IS NOT NULL)
-        {since_clause}
+        {plat_clause}{since_clause}
         GROUP BY brand, item
         HAVING requests >= ?
         ORDER BY requests DESC
@@ -46,10 +48,18 @@ def unmet_demand(conn: sqlite3.Connection, min_requests: int = 3,
 
 
 def buyer_profiles(conn: sqlite3.Connection, min_activity: int = 10,
-                   since: str | None = None) -> list[dict]:
+                   since: str | None = None,
+                   platform: str | None = None) -> list[dict]:
     """Profile top users: what they want, what they own, brand preferences."""
-    where = "WHERE timestamp >= ?" if since else ""
-    having_params = ([since] if since else []) + [min_activity]
+    parts, wp = [], []
+    if since:
+        parts.append("timestamp >= ?")
+        wp.append(since)
+    if platform:
+        parts.append("message_id IN (SELECT id FROM raw_messages WHERE source_platform = ?)")
+        wp.append(platform)
+    where = "WHERE " + " AND ".join(parts) if parts else ""
+    having_params = wp + [min_activity]
     rows = conn.execute(f"""
         SELECT author,
                COUNT(*) as total_mentions,
@@ -66,6 +76,8 @@ def buyer_profiles(conn: sqlite3.Connection, min_activity: int = 10,
 
     since_clause = " AND timestamp >= ?" if since else ""
     since_params = [since] if since else []
+    plat_clause = " AND message_id IN (SELECT id FROM raw_messages WHERE source_platform = ?)" if platform else ""
+    plat_params = [platform] if platform else []
 
     profiles = []
     for r in rows:
@@ -73,9 +85,9 @@ def buyer_profiles(conn: sqlite3.Connection, min_activity: int = 10,
         brand_rows = conn.execute(f"""
             SELECT brand, COUNT(*) as cnt FROM processed_mentions
             WHERE author = ? AND brand IS NOT NULL
-            {since_clause}
+            {plat_clause}{since_clause}
             GROUP BY brand ORDER BY cnt DESC LIMIT 5
-        """, [r["author"]] + since_params).fetchall()
+        """, [r["author"]] + plat_params + since_params).fetchall()
         top_brands = [{"brand": b["brand"], "count": b["cnt"]} for b in brand_rows]
 
         # Get top requested items
@@ -83,9 +95,9 @@ def buyer_profiles(conn: sqlite3.Connection, min_activity: int = 10,
             SELECT brand, item, COUNT(*) as cnt FROM processed_mentions
             WHERE author = ? AND intent_type = 'request'
                 AND (brand IS NOT NULL OR item IS NOT NULL)
-            {since_clause}
+            {plat_clause}{since_clause}
             GROUP BY brand, item ORDER BY cnt DESC LIMIT 5
-        """, [r["author"]] + since_params).fetchall()
+        """, [r["author"]] + plat_params + since_params).fetchall()
         top_requests = [
             {"brand": i["brand"] or "—", "item": i["item"] or "—", "count": i["cnt"]}
             for i in item_rows
@@ -121,14 +133,16 @@ def _segment_user(requests: int, owned: int, buy_ratio: float) -> str:
 
 
 def brand_cross_sell(conn: sqlite3.Connection, min_overlap: int = 5,
-                     since: str | None = None) -> list[dict]:
+                     since: str | None = None,
+                     platform: str | None = None) -> list[dict]:
     """Find brands frequently mentioned by the same users (cross-sell opportunities)."""
     since_clause = " AND timestamp >= ?" if since else ""
-    params = [since] if since else []
+    plat_clause = " AND message_id IN (SELECT id FROM raw_messages WHERE source_platform = ?)" if platform else ""
+    params = ([platform] if platform else []) + ([since] if since else [])
     rows = conn.execute(f"""
         SELECT author, brand FROM processed_mentions
         WHERE brand IS NOT NULL
-        {since_clause}
+        {plat_clause}{since_clause}
         GROUP BY author, brand
     """, params).fetchall()
 
@@ -152,15 +166,17 @@ def brand_cross_sell(conn: sqlite3.Connection, min_overlap: int = 5,
 
 
 def size_demand(conn: sqlite3.Connection,
-                since: str | None = None) -> list[dict]:
+                since: str | None = None,
+                platform: str | None = None) -> list[dict]:
     """Analyze which sizes are most requested."""
     since_clause = " AND timestamp >= ?" if since else ""
-    params = [since] if since else []
+    plat_clause = " AND message_id IN (SELECT id FROM raw_messages WHERE source_platform = ?)" if platform else ""
+    params = ([platform] if platform else []) + ([since] if since else [])
     rows = conn.execute(f"""
         SELECT variant, intent_type, COUNT(*) as cnt
         FROM processed_mentions
         WHERE variant IS NOT NULL
-        {since_clause}
+        {plat_clause}{since_clause}
         GROUP BY variant, intent_type
     """, params).fetchall()
 
@@ -187,15 +203,17 @@ def size_demand(conn: sqlite3.Connection,
 
 
 def color_demand(conn: sqlite3.Connection,
-                 since: str | None = None) -> list[dict]:
+                 since: str | None = None,
+                 platform: str | None = None) -> list[dict]:
     """Analyze which colors are most in demand."""
     since_clause = " AND timestamp >= ?" if since else ""
-    params = [since] if since else []
+    plat_clause = " AND message_id IN (SELECT id FROM raw_messages WHERE source_platform = ?)" if platform else ""
+    params = ([platform] if platform else []) + ([since] if since else [])
     rows = conn.execute(f"""
         SELECT variant, intent_type, COUNT(*) as cnt
         FROM processed_mentions
         WHERE variant IS NOT NULL
-        {since_clause}
+        {plat_clause}{since_clause}
         GROUP BY variant, intent_type
     """, params).fetchall()
 
@@ -222,11 +240,12 @@ def color_demand(conn: sqlite3.Connection,
 
 
 def inventory_recommendations(conn: sqlite3.Connection,
-                              since: str | None = None) -> list[dict]:
+                              since: str | None = None,
+                              platform: str | None = None) -> list[dict]:
     """Generate specific inventory recommendations based on demand signals."""
-    unmet = unmet_demand(conn, min_requests=3, since=since)
-    sizes = size_demand(conn, since=since)
-    colors = color_demand(conn, since=since)
+    unmet = unmet_demand(conn, min_requests=3, since=since, platform=platform)
+    sizes = size_demand(conn, since=since, platform=platform)
+    colors = color_demand(conn, since=since, platform=platform)
 
     top_sizes = [s["size"] for s in sizes[:5]]
     top_colors = [c["color"] for c in colors[:5]]
@@ -262,10 +281,12 @@ def _generate_rec_note(item: dict) -> str:
 
 
 def monthly_seasonality(conn: sqlite3.Connection,
-                        since: str | None = None) -> list[dict]:
+                        since: str | None = None,
+                        platform: str | None = None) -> list[dict]:
     """Monthly mention volumes for seasonality analysis."""
     since_clause = " AND timestamp >= ?" if since else ""
-    params = [since] if since else []
+    plat_clause = " AND message_id IN (SELECT id FROM raw_messages WHERE source_platform = ?)" if platform else ""
+    params = ([platform] if platform else []) + ([since] if since else [])
     rows = conn.execute(f"""
         SELECT strftime('%Y-%m', timestamp) as month,
                COUNT(*) as total,
@@ -274,17 +295,19 @@ def monthly_seasonality(conn: sqlite3.Connection,
                COUNT(DISTINCT author) as unique_users
         FROM processed_mentions
         WHERE month IS NOT NULL
-        {since_clause}
+        {plat_clause}{since_clause}
         GROUP BY month ORDER BY month
     """, params).fetchall()
     return [dict(r) for r in rows]
 
 
 def conversion_tracking(conn: sqlite3.Connection,
-                        since: str | None = None) -> list[dict]:
+                        since: str | None = None,
+                        platform: str | None = None) -> list[dict]:
     """Users who requested a brand AND later owned it — shows conversion."""
     since_clause = " AND timestamp >= ?" if since else ""
-    params = [since] if since else []
+    plat_clause = " AND message_id IN (SELECT id FROM raw_messages WHERE source_platform = ?)" if platform else ""
+    params = ([platform] if platform else []) + ([since] if since else [])
     rows = conn.execute(f"""
         SELECT author, brand,
                SUM(CASE WHEN intent_type='request' THEN 1 ELSE 0 END) as requests,
@@ -292,7 +315,7 @@ def conversion_tracking(conn: sqlite3.Connection,
                SUM(CASE WHEN intent_type='satisfaction' THEN 1 ELSE 0 END) as satisfied
         FROM processed_mentions
         WHERE brand IS NOT NULL
-        {since_clause}
+        {plat_clause}{since_clause}
         GROUP BY author, brand
         HAVING requests >= 2 AND owned >= 1
         ORDER BY requests DESC

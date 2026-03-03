@@ -8,11 +8,33 @@ import sqlite3
 from src.common.config import BATCH_SIZE
 from src.common.db import get_connection, insert_processed_mentions, raw_message_count
 from src.common.log_util import get_logger
-from src.process.classify import classify_intent_from_channel
+from src.process.classify import classify_intent_from_channel, classify_intent_from_flair
 from src.process.extract import extract_all, extract_items_from_listing
 from src.process.normalize import is_listing, is_spam_or_empty, normalize_text
 
 log = get_logger("pipeline")
+
+
+def _classify_message(msg: sqlite3.Row, text_norm: str) -> tuple[str, float]:
+    """Choose the right classifier based on source platform."""
+    platform = msg["source_platform"] if "source_platform" in msg.keys() else "discord"
+    channel = msg["channel"]
+
+    if platform == "reddit":
+        flair = msg["channel_category"]  # flair stored here for Reddit
+        return classify_intent_from_flair(flair, text_norm)
+
+    return classify_intent_from_channel(channel, text_norm)
+
+
+def _build_variant(entities: dict) -> str | None:
+    """Combine variant (color/size) with batch name if present."""
+    parts = []
+    if entities.get("variant"):
+        parts.append(entities["variant"])
+    if entities.get("batch"):
+        parts.append(f"batch:{entities['batch']}")
+    return " / ".join(parts) if parts else None
 
 
 def _process_batch(conn: sqlite3.Connection, messages: list[sqlite3.Row]) -> int:
@@ -35,21 +57,23 @@ def _process_batch(conn: sqlite3.Connection, messages: list[sqlite3.Row]) -> int
         if is_listing(raw_content):
             items = extract_items_from_listing(normalize_text(raw_content))
             for item_data in items:
-                intent, score = classify_intent_from_channel(channel, text_norm)
+                intent, score = _classify_message(msg, text_norm)
+                variant = _build_variant(item_data)
                 rows_to_insert.append((
                     message_id, timestamp, channel, author,
-                    item_data["brand"], item_data["item"], item_data["variant"],
+                    item_data["brand"], item_data["item"], variant,
                     intent, score, text_norm[:500],
                 ))
         else:
             entities = extract_all(text_norm)
-            intent, score = classify_intent_from_channel(channel, text_norm)
+            intent, score = _classify_message(msg, text_norm)
 
             # Only store if we extracted something or have a non-neutral intent
             if entities["brand"] or entities["item"] or intent != "neutral":
+                variant = _build_variant(entities)
                 rows_to_insert.append((
                     message_id, timestamp, channel, author,
-                    entities["brand"], entities["item"], entities["variant"],
+                    entities["brand"], entities["item"], variant,
                     intent, score, text_norm[:500],
                 ))
 

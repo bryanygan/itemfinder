@@ -1,4 +1,4 @@
-"""Text normalization for Discord messages."""
+"""Text normalization for Discord and Reddit messages."""
 
 import re
 
@@ -12,9 +12,26 @@ _DISCORD_FORMAT_RE = re.compile(r"~~.*?~~")  # strikethrough
 _PRICE_TAG_RE = re.compile(r"\$\d+[\d,.]*\s*(shipped|obo|each|firm)?", re.IGNORECASE)
 _SOLD_RE = re.compile(r"\bSOLD\b", re.IGNORECASE)
 
+# Reddit-specific patterns
+_REDDIT_USER_RE = re.compile(r"/?u/[\w-]+")
+_REDDIT_SUB_RE = re.compile(r"/?r/[\w-]+")
+_REDDIT_QUOTE_RE = re.compile(r"^>\s*.*$", re.MULTILINE)
+_REDDIT_EDIT_RE = re.compile(r"\bedit\s*\d*\s*:", re.IGNORECASE)
+_REDDIT_BOT_RE = re.compile(
+    r"(i am a bot|beep boop|this action was performed automatically"
+    r"|contact the moderators|automod|remindmebot|sneakpeekbot)",
+    re.IGNORECASE,
+)
+_YUAN_PRICE_RE = re.compile(r"¥\d+[\d,.]*", re.IGNORECASE)
+_CNY_PRICE_RE = re.compile(r"\b\d+\s*(?:yuan|cny|rmb)\b", re.IGNORECASE)
+
+# Reddit title bracket tags: [QC], [W2C], [FIND], [WTB], [WTS], [REVIEW], etc.
+# We strip these because flair is already captured separately in metadata
+_REDDIT_BRACKET_TAG_RE = re.compile(r"\[[^\]]{1,20}\]")
+
 
 def normalize_text(text: str) -> str:
-    """Clean and normalize a Discord message for analysis."""
+    """Clean and normalize a message for analysis. Works for both Discord and Reddit."""
     if not text:
         return ""
 
@@ -33,8 +50,23 @@ def normalize_text(text: str) -> str:
     # Remove custom emoji markup
     t = _EMOJI_CUSTOM_RE.sub("", t)
 
-    # Remove price tags (not useful for demand analysis)
+    # Remove Reddit user and subreddit mentions
+    t = _REDDIT_USER_RE.sub("", t)
+    t = _REDDIT_SUB_RE.sub("", t)
+
+    # Remove Reddit quote blocks (keep the rest of the text)
+    t = _REDDIT_QUOTE_RE.sub("", t)
+
+    # Remove edit notices
+    t = _REDDIT_EDIT_RE.sub("", t)
+
+    # Remove Reddit title bracket tags ([QC], [W2C], etc.)
+    t = _REDDIT_BRACKET_TAG_RE.sub("", t)
+
+    # Remove price tags (USD and CNY — not useful for demand analysis)
     t = _PRICE_TAG_RE.sub("", t)
+    t = _YUAN_PRICE_RE.sub("", t)
+    t = _CNY_PRICE_RE.sub("", t)
 
     # Lowercase
     t = t.lower()
@@ -56,6 +88,10 @@ def is_spam_or_empty(text: str, min_length: int = 2) -> bool:
 
     # Repetitive characters
     if len(set(text.replace(" ", ""))) <= 2 and len(text) > 3:
+        return True
+
+    # Reddit bot messages
+    if _REDDIT_BOT_RE.search(text):
         return True
 
     return False

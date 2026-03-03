@@ -18,16 +18,26 @@ def _parse_ts(ts_str: str) -> datetime | None:
 
 
 def trending_items(conn: sqlite3.Connection, top_n: int = 20,
-                    since: str | None = None) -> list[dict]:
+                    since: str | None = None,
+                    platform: str | None = None) -> list[dict]:
     """Identify fastest-rising items by comparing recent vs previous window."""
 
     where_since = " AND timestamp >= ?" if since else ""
     params_since = [since] if since else []
+    plat_clause = " AND message_id IN (SELECT id FROM raw_messages WHERE source_platform = ?)" if platform else ""
+    plat_params = [platform] if platform else []
 
+    mt_parts, mt_p = [], []
+    if platform:
+        mt_parts.append("message_id IN (SELECT id FROM raw_messages WHERE source_platform = ?)")
+        mt_p.append(platform)
+    if since:
+        mt_parts.append("timestamp >= ?")
+        mt_p.append(since)
+    mt_where = " WHERE " + " AND ".join(mt_parts) if mt_parts else ""
     max_ts = conn.execute(
-        "SELECT MAX(timestamp) FROM processed_mentions"
-        + (" WHERE timestamp >= ?" if since else ""),
-        params_since,
+        f"SELECT MAX(timestamp) FROM processed_mentions{mt_where}",
+        mt_p,
     ).fetchone()[0]
     if not max_ts:
         return []
@@ -40,12 +50,13 @@ def trending_items(conn: sqlite3.Connection, top_n: int = 20,
     if since and since > cutoff_prev:
         cutoff_prev = since
 
-    rows = conn.execute("""
+    rows = conn.execute(f"""
         SELECT brand, item, timestamp
         FROM processed_mentions
         WHERE (brand IS NOT NULL OR item IS NOT NULL)
           AND timestamp >= ?
-    """ + where_since, [cutoff_prev] + params_since).fetchall()
+          {plat_clause}
+    """ + where_since, [cutoff_prev] + plat_params + params_since).fetchall()
 
     recent_counts: dict[tuple, int] = defaultdict(int)
     prev_counts: dict[tuple, int] = defaultdict(int)
@@ -79,10 +90,17 @@ def trending_items(conn: sqlite3.Connection, top_n: int = 20,
 
 
 def channel_breakdown(conn: sqlite3.Connection,
-                      since: str | None = None) -> list[dict]:
+                      since: str | None = None,
+                      platform: str | None = None) -> list[dict]:
     """Break down mentions by channel."""
-    where = "WHERE timestamp >= ?" if since else ""
-    params = [since] if since else []
+    parts, params = [], []
+    if since:
+        parts.append("timestamp >= ?")
+        params.append(since)
+    if platform:
+        parts.append("message_id IN (SELECT id FROM raw_messages WHERE source_platform = ?)")
+        params.append(platform)
+    where = "WHERE " + " AND ".join(parts) if parts else ""
     rows = conn.execute(f"""
         SELECT channel,
                COUNT(*) as total,
@@ -101,10 +119,17 @@ def channel_breakdown(conn: sqlite3.Connection,
 
 
 def daily_volume(conn: sqlite3.Connection,
-                 since: str | None = None) -> list[dict]:
+                 since: str | None = None,
+                 platform: str | None = None) -> list[dict]:
     """Get daily mention counts for time-series visualization."""
-    where = "WHERE timestamp >= ?" if since else ""
-    params = [since] if since else []
+    parts, params = [], []
+    if since:
+        parts.append("timestamp >= ?")
+        params.append(since)
+    if platform:
+        parts.append("message_id IN (SELECT id FROM raw_messages WHERE source_platform = ?)")
+        params.append(platform)
+    where = "WHERE " + " AND ".join(parts) if parts else ""
     rows = conn.execute(f"""
         SELECT DATE(timestamp) as day,
                COUNT(*) as mentions,
@@ -121,10 +146,12 @@ def daily_volume(conn: sqlite3.Connection,
 
 
 def top_items_by_intent(conn: sqlite3.Connection, intent: str, limit: int = 15,
-                        since: str | None = None) -> list[dict]:
+                        since: str | None = None,
+                        platform: str | None = None) -> list[dict]:
     """Get top items for a specific intent type."""
     since_clause = " AND timestamp >= ?" if since else ""
-    params = [intent] + ([since] if since else []) + [limit]
+    plat_clause = " AND message_id IN (SELECT id FROM raw_messages WHERE source_platform = ?)" if platform else ""
+    params = [intent] + ([platform] if platform else []) + ([since] if since else []) + [limit]
     rows = conn.execute(f"""
         SELECT brand, item,
                COUNT(*) as count,
@@ -132,7 +159,7 @@ def top_items_by_intent(conn: sqlite3.Connection, intent: str, limit: int = 15,
         FROM processed_mentions
         WHERE intent_type = ?
           AND (brand IS NOT NULL OR item IS NOT NULL)
-          {since_clause}
+          {plat_clause}{since_clause}
         GROUP BY brand, item
         ORDER BY count DESC
         LIMIT ?
@@ -141,17 +168,19 @@ def top_items_by_intent(conn: sqlite3.Connection, intent: str, limit: int = 15,
 
 
 def sentiment_over_time(conn: sqlite3.Connection,
-                        since: str | None = None) -> list[dict]:
+                        since: str | None = None,
+                        platform: str | None = None) -> list[dict]:
     """Weekly sentiment aggregation."""
     since_clause = " AND timestamp >= ?" if since else ""
-    params = [since] if since else []
+    plat_clause = " AND message_id IN (SELECT id FROM raw_messages WHERE source_platform = ?)" if platform else ""
+    params = ([platform] if platform else []) + ([since] if since else [])
     rows = conn.execute(f"""
         SELECT strftime('%Y-W%W', timestamp) as week,
                intent_type,
                COUNT(*) as count
         FROM processed_mentions
         WHERE intent_type != 'neutral'
-        {since_clause}
+        {plat_clause}{since_clause}
         GROUP BY week, intent_type
         ORDER BY week
     """, params).fetchall()

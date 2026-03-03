@@ -40,38 +40,53 @@ TIMEFRAME_OPTIONS = [
     {"label": "All Time", "value": "all"},
 ]
 
+PLATFORM_OPTIONS = [
+    {"label": "Combined", "value": "all"},
+    {"label": "Discord", "value": "discord"},
+    {"label": "Reddit", "value": "reddit"},
+]
+
+_PLATFORM_LABELS = {"all": "Discord + Reddit", "discord": "Discord", "reddit": "Reddit"}
+
 
 # ── Data loading ──────────────────────────────────────────────────────────
 
-def _load(since: str | None = None):
+def _load(since: str | None = None, platform: str | None = None):
+    plat = platform if platform and platform != "all" else None
     conn = get_connection()
     d = dict(
-        raw=raw_message_count(conn, since=since),
-        mentions=processed_mention_count(conn, since=since),
-        items=compute_item_scores(conn, since=since),
-        brands=compute_brand_scores(conn, since=since),
-        trending=trending_items(conn, 20, since=since),
-        channels=channel_breakdown(conn, since=since),
-        daily=daily_volume(conn, since=since),
-        req=top_items_by_intent(conn, "request", 30, since=since),
-        sat=top_items_by_intent(conn, "satisfaction", 30, since=since),
-        reg=top_items_by_intent(conn, "regret", 30, since=since),
-        own=top_items_by_intent(conn, "ownership", 30, since=since),
-        unmet=unmet_demand(conn, 3, since=since),
-        profiles=buyer_profiles(conn, 20, since=since),
-        cross=brand_cross_sell(conn, 10, since=since),
-        sizes=size_demand(conn, since=since),
-        colors=color_demand(conn, since=since),
-        inv=inventory_recommendations(conn, since=since),
-        season=monthly_seasonality(conn, since=since),
-        conv=conversion_tracking(conn, since=since),
+        raw=raw_message_count(conn, since=since, platform=plat),
+        mentions=processed_mention_count(conn, since=since, platform=plat),
+        items=compute_item_scores(conn, since=since, platform=plat),
+        brands=compute_brand_scores(conn, since=since, platform=plat),
+        trending=trending_items(conn, 20, since=since, platform=plat),
+        channels=channel_breakdown(conn, since=since, platform=plat),
+        daily=daily_volume(conn, since=since, platform=plat),
+        req=top_items_by_intent(conn, "request", 30, since=since, platform=plat),
+        sat=top_items_by_intent(conn, "satisfaction", 30, since=since, platform=plat),
+        reg=top_items_by_intent(conn, "regret", 30, since=since, platform=plat),
+        own=top_items_by_intent(conn, "ownership", 30, since=since, platform=plat),
+        unmet=unmet_demand(conn, 3, since=since, platform=plat),
+        profiles=buyer_profiles(conn, 20, since=since, platform=plat),
+        cross=brand_cross_sell(conn, 10, since=since, platform=plat),
+        sizes=size_demand(conn, since=since, platform=plat),
+        colors=color_demand(conn, since=since, platform=plat),
+        inv=inventory_recommendations(conn, since=since, platform=plat),
+        season=monthly_seasonality(conn, since=since, platform=plat),
+        conv=conversion_tracking(conn, since=since, platform=plat),
+        platform_label=_PLATFORM_LABELS.get(platform or "all", "Discord + Reddit"),
     )
+    # Intent distribution with platform filter
+    plat_clause = " AND message_id IN (SELECT id FROM raw_messages WHERE source_platform = ?)" if plat else ""
+    plat_params = [plat] if plat else []
+    since_clause = " AND timestamp >= ?" if since else ""
+    since_params = [since] if since else []
     rows = conn.execute(
         "SELECT intent_type, COUNT(*) as count "
         "FROM processed_mentions "
-        + ("WHERE timestamp >= ? " if since else "")
-        + "GROUP BY intent_type",
-        [since] if since else [],
+        "WHERE 1=1" + plat_clause + since_clause
+        + " GROUP BY intent_type",
+        plat_params + since_params,
     ).fetchall()
     d["intent_dist"] = pd.DataFrame([dict(r) for r in rows]) if rows else pd.DataFrame()
     conn.close()
@@ -115,14 +130,15 @@ def _overview(D):
         c = cross_df.iloc[0]
         actions.append(f"Bundle {c['brand_a']} + {c['brand_b']} — {c['shared_users']} customers want both")
 
+    plabel = D.get("platform_label", "Discord + Reddit")
     return html.Div([
         explainer([
             html.Strong("Welcome to your Demand Intelligence Dashboard. "),
-            "This tool analyzes thousands of Discord messages from your community to find ",
+            f"This tool analyzes thousands of {plabel} messages from your community to find ",
             html.Strong("what people want to buy"), ", ",
             html.Strong("what's trending"), ", and ",
             html.Strong("where the biggest sales opportunities are"),
-            ". Every number here comes from real conversations in your Discord servers.",
+            f". Every number here comes from real conversations across {plabel}.",
         ]),
         html.Div([
             kpi(D["raw"], "Messages Scanned", C_CYAN),
@@ -132,11 +148,11 @@ def _overview(D):
             kpi(len(D["channels"]), "Channels Analyzed", C_PURPLE),
         ], className="kpi-row"),
         explainer([
-            html.Strong("Messages Scanned: "), "Total Discord messages we processed. ",
+            html.Strong("Messages Scanned: "), f"Total {plabel} messages we processed. ",
             html.Strong("Product Mentions: "), "Messages where someone talked about a specific brand or item. ",
             html.Strong("Brands: "), "Unique brands people mentioned. ",
             html.Strong("Item Combinations: "), "Unique brand + item pairs (e.g. 'Balenciaga hoodie'). ",
-            html.Strong("Channels: "), "Discord channels with product discussion.",
+            html.Strong("Channels: "), "Channels / subreddits with product discussion.",
         ], "green"),
         html.Div([
             chart_card("Top 15 Brands by Mentions",
@@ -245,7 +261,7 @@ def _customers(D):
     return html.Div([
         explainer([
             html.Strong("Know your customers. "),
-            "We analyze each user's Discord activity to understand buying behavior. ",
+            "We analyze each user's activity to understand buying behavior. ",
             html.Strong("Loyal Buyers"), " buy often. ",
             html.Strong("High-Intent Prospects"), " ask for a lot but buy little (untapped opportunity). ",
             html.Strong("Active Buyers"), " moderate buying. ",
@@ -498,6 +514,14 @@ app.layout = html.Div([
         ]),
         html.Div([
             dcc.Dropdown(
+                id="platform-selector",
+                options=PLATFORM_OPTIONS,
+                value="all",
+                clearable=False,
+                style={"width": "140px", "backgroundColor": "#252836",
+                       "color": "#e8eaed", "borderColor": "#2d3044"},
+            ),
+            dcc.Dropdown(
                 id="timeframe-dropdown",
                 options=TIMEFRAME_OPTIONS,
                 value="all",
@@ -505,8 +529,11 @@ app.layout = html.Div([
                 style={"width": "140px", "backgroundColor": "#252836",
                        "color": "#e8eaed", "borderColor": "#2d3044"},
             ),
-        ], style={"display": "flex", "alignItems": "center", "gap": "20px"}),
+        ], style={"display": "flex", "alignItems": "center", "gap": "12px"}),
         html.Div([
+            html.Div([html.Div(id="hdr-platform", children="Discord + Reddit",
+                                className="num", style={"fontSize": "0.85rem"}),
+                       html.Div("Source", className="lbl")], className="header-stat"),
             html.Div([html.Div(id="hdr-msgs", children=f"{_D0['raw']:,}", className="num"),
                        html.Div("Messages", className="lbl")], className="header-stat"),
             html.Div([html.Div(id="hdr-mentions", children=f"{_D0['mentions']:,}", className="num"),
@@ -537,7 +564,7 @@ app.layout = html.Div([
     dcc.Store(id="items-store"),
 
     html.Div([
-        html.P("ZR ItemFinder v1.0 — Data from Discord community analysis",
+        html.P("ZR ItemFinder v1.1 — Data from Discord + Reddit community analysis",
                style={"color": "var(--text-muted)", "fontSize": "0.75rem",
                        "textAlign": "center", "padding": "20px 0"}),
     ], style={"borderTop": "1px solid var(--border)", "marginTop": "32px"}),
@@ -557,15 +584,17 @@ app.layout = html.Div([
      Output("hdr-msgs", "children"),
      Output("hdr-mentions", "children"),
      Output("hdr-brands", "children"),
-     Output("items-store", "data")],
-    Input("timeframe-dropdown", "value"),
+     Output("items-store", "data"),
+     Output("hdr-platform", "children")],
+    [Input("timeframe-dropdown", "value"),
+     Input("platform-selector", "value")],
 )
-def update_timeframe(days):
+def update_dashboard(days, platform):
     if days and days != "all":
         since = (datetime.now() - timedelta(days=int(days))).isoformat()
     else:
         since = None
-    D = _load(since)
+    D = _load(since, platform=platform or "all")
     items_df = _df(D, "items")
     return [
         _overview(D),
@@ -579,6 +608,7 @@ def update_timeframe(days):
         f"{D['mentions']:,}",
         str(len(D["brands"])),
         items_df.to_dict("records") if not items_df.empty else [],
+        D["platform_label"],
     ]
 
 

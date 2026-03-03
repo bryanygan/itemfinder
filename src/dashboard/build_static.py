@@ -285,11 +285,11 @@ def _tab_overview(D):
     p = ['<div class="page-content">']
     p.append(_exp(
         "<strong>Welcome to your Demand Intelligence Dashboard.</strong> "
-        "This tool analyzes thousands of Discord messages to find "
+        "This tool analyzes thousands of Discord + Reddit messages to find "
         "<strong>what people want to buy</strong>, "
         "<strong>what is trending</strong>, and "
         "<strong>where the biggest sales opportunities are</strong>. "
-        "Every number comes from real conversations in your Discord servers."))
+        "Every number comes from real conversations in your Discord servers and Reddit communities."))
     p.append('<div class="kpi-row">')
     p.append(_kpi(D["raw"], "Messages Scanned", C["cyan"], "msgs"))
     p.append(_kpi(D["mentions"], "Product Mentions", C["green"], "mentions"))
@@ -298,11 +298,11 @@ def _tab_overview(D):
     p.append(_kpi(D["n_channels"], "Channels Analyzed", C["purple"], "channels"))
     p.append("</div>")
     p.append(_exp(
-        "<strong>Messages Scanned:</strong> Total Discord messages processed. "
+        "<strong>Messages Scanned:</strong> Total Discord + Reddit messages processed. "
         "<strong>Product Mentions:</strong> Messages about a specific brand or item. "
         "<strong>Brands:</strong> Unique brands mentioned. "
         '<strong>Item Combinations:</strong> Unique brand + item pairs (e.g. "Balenciaga hoodie"). '
-        "<strong>Channels:</strong> Discord channels with product discussion.", "green"))
+        "<strong>Channels:</strong> Channels / subreddits with product discussion.", "green"))
     p.append('<div class="two-col">')
     p.append(_chart("fig-brands", "Top 15 Brands by Mentions",
                      "Taller bars = more popular. Color shows trend momentum."))
@@ -367,7 +367,7 @@ def _tab_customers(D):
     p = ['<div class="page-content">']
     p.append(_exp(
         "<strong>Know your customers.</strong> "
-        "We analyze each user's Discord activity to understand buying behavior. "
+        "We analyze each user's activity to understand buying behavior. "
         "<strong>Loyal Buyers</strong> buy often. "
         "<strong>High-Intent Prospects</strong> ask for a lot but buy little (untapped opportunity). "
         "<strong>Active Buyers</strong> moderate buying. "
@@ -693,7 +693,7 @@ def _build_page(all_data, default_data):
 {panels}
 <footer style="border-top:1px solid var(--border);margin-top:32px">
 <p style="color:var(--text-muted);font-size:0.75rem;text-align:center;padding:20px 0">
-ZR ItemFinder v1.0 &mdash; Data from Discord community analysis</p>
+ZR ItemFinder v1.1 &mdash; Data from Discord + Reddit community analysis</p>
 </footer>
 <script>const DATA={data_json};{JS}</script>
 </body>

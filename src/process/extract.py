@@ -1,11 +1,14 @@
-"""Entity extraction: brand, item, variant from normalized text."""
+"""Entity extraction: brand, item, variant, batch from normalized text."""
 
 import re
 
 from src.common.config import (
+    AGENT_NAMES,
+    BATCH_NAMES_SORTED,
     BRAND_ALIASES_SORTED,
     COLORS,
     ITEM_TYPES,
+    SELLER_PLATFORMS,
     SIZES,
 )
 
@@ -124,15 +127,94 @@ def extract_variant(text: str) -> str | None:
     return " / ".join(parts) if parts else None
 
 
-def extract_all(text: str) -> dict:
-    """Extract brand, item, and variant from text.
+def extract_batch(text: str) -> str | None:
+    """Extract factory batch name from text (Reddit-specific entity).
 
-    Returns dict with keys: brand, item, variant
+    Batch names like LJR, PK, M batch, HP are critical quality identifiers
+    in rep communities. They indicate which factory made the item.
+    """
+    if not text:
+        return None
+
+    for alias, canonical in BATCH_NAMES_SORTED:
+        if len(alias) <= 2:
+            # Short batch names need word boundaries to avoid false positives
+            if re.search(rf"\b{re.escape(alias)}\b", text):
+                return canonical
+        else:
+            if alias in text:
+                return canonical
+
+    return None
+
+
+def extract_agent(text: str) -> str | None:
+    """Extract shopping agent name from text."""
+    if not text:
+        return None
+    for agent in AGENT_NAMES:
+        if agent in text:
+            return agent
+    return None
+
+
+def extract_seller_platform(text: str) -> str | None:
+    """Extract seller platform (weidian, taobao, 1688, yupoo) from text."""
+    if not text:
+        return None
+    for platform in SELLER_PLATFORMS:
+        if platform in text:
+            return platform
+    return None
+
+
+# Reddit title bracket pattern: [QC], [W2C], [FIND], [REVIEW], etc.
+_TITLE_BRACKET_RE = re.compile(r"\[([^\]]+)\]")
+
+
+def extract_from_reddit_title(title: str) -> dict:
+    """Parse structured Reddit post titles for entities.
+
+    Reddit rep community titles follow patterns like:
+        [QC] Nike Dunk Low Panda - LJR Batch - from Pandabuy
+        [W2C] Best batch Chrome Hearts hoodie size L
+        [FIND] ¥199 - Jordan 4 Military Black - WTG Store
+        [HAUL] 10kg haul to US - Jordan, Nike, Chrome Hearts
+
+    Returns dict with: flair_tag, brand, item, variant, batch, agent
+    """
+    if not title:
+        return {}
+
+    result = {}
+    title_lower = title.lower()
+
+    # Extract bracket tags (often duplicate the flair)
+    brackets = _TITLE_BRACKET_RE.findall(title)
+    if brackets:
+        result["flair_tag"] = brackets[0].lower().strip()
+
+    # Standard extraction on the full title
+    result["brand"] = extract_brand(title_lower)
+    result["item"] = extract_item(title_lower)
+    result["variant"] = extract_variant(title_lower)
+    result["batch"] = extract_batch(title_lower)
+    result["agent"] = extract_agent(title_lower)
+    result["platform"] = extract_seller_platform(title_lower)
+
+    return result
+
+
+def extract_all(text: str) -> dict:
+    """Extract brand, item, variant, and batch from text.
+
+    Returns dict with keys: brand, item, variant, batch
     """
     return {
         "brand": extract_brand(text),
         "item": extract_item(text),
         "variant": extract_variant(text),
+        "batch": extract_batch(text),
     }
 
 
