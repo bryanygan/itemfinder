@@ -94,7 +94,7 @@ body {
 /* ── Chart cards ── */
 .chart-card {
     background: var(--bg-card); border: 1px solid var(--border); border-radius: 12px;
-    padding: 16px 20px; margin-bottom: 20px;
+    padding: 16px 20px; margin-bottom: 20px; overflow: visible;
 }
 .chart-card h3 { font-size: 0.95rem; font-weight: 600; color: var(--text-primary); margin: 0 0 4px; }
 .chart-card .chart-sub { font-size: 0.78rem; color: var(--text-muted); margin-bottom: 12px; }
@@ -139,7 +139,7 @@ body {
 }
 .data-table tr:nth-child(odd) td { background-color: rgba(37,40,54,0.5); }
 .table-wrap { overflow-x: auto; margin-bottom: 8px; }
-.chart-container { width: 100%; min-height: 280px; }
+.chart-container { width: 100%; min-height: 320px; }
 
 /* ── Static tab nav ── */
 nav.custom-tabs { display: flex; overflow-x: auto; }
