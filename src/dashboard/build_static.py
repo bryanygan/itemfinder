@@ -492,6 +492,142 @@ def _tab_channels(D):
     return "\n".join(p)
 
 
+def _tab_market_report(_D):
+    """Static market intelligence report — March 2026."""
+    bc, gc, rc, ac, pc = C["blue"], C["green"], C["red"], C["amber"], C["purple"]
+    p = ['<div class="page-content">']
+    p.append(_exp(
+        "<strong>Live Market Intelligence Report — March 2026.</strong> "
+        "Compiled from 4 research swarms across 21 subreddits including r/FashionReps, "
+        "r/Repsneakers, r/DesignerReps, r/DHgate, r/QualityReps, r/weidianwarriors, and more. "
+        "This report surfaces what is trending <strong>right now</strong> across the entire rep community — "
+        "cross-referenced against your dashboard data to highlight gaps and opportunities."))
+
+    # ── Key Dates callout ──────────────────────────────────────────────────
+    p.append(_sec("Upcoming Release Calendar", "Stock reps ahead of these retail drops — W2C demand peaks at release."))
+    p.append(f'<div class="action-box"><div class="action-title">Key Dates to Calendar</div><ul>'
+             f'<li><strong>March 28, 2026</strong> — Virgil Abloh Archive x AJ1 High "Alaska" retail (~20k pairs). Rep demand peaks same week.</li>'
+             f'<li><strong>May 22, 2026</strong> — Travis Scott x Jordan 1 Low Pink Pack retail. Source reps April–early May.</li>'
+             f'<li><strong>Black Friday 2026</strong> — AJ4 OG "Bred" with OG Nike Air heel branding. Source reps September–October.</li>'
+             f'<li><strong>December 12, 2026</strong> — AJ11 "Space Jam" + limited Galaxy variant. Source reps October–November.</li>'
+             f'</ul></div>')
+
+    # ── Sneakers Tier 1 ───────────────────────────────────────────────────
+    p.append(_sec("Sneakers — Tier 1: Extreme Demand (Stock Now)"))
+    p.append(_exp(f'<strong style="color:{rc}">These are the highest-priority items across all communities. '
+                  f'Pre-release drops are already generating W2C posts.</strong>'))
+    p.append('<div class="table-wrap"><table class="data-table"><thead><tr>'
+             '<th data-sort>#</th><th data-sort>Item</th><th data-sort>Best Batch</th>'
+             '<th data-sort>Rep Price</th><th>Key Signal</th></tr></thead><tbody>'
+             '<tr><td>1</td><td><strong>Air Jordan 1 High — Chicago / Royal / Shadow</strong></td><td>LJR</td><td>$130–$160</td><td>All-time #1 W2C sneaker. Evergreen.</td></tr>'
+             '<tr><td>2</td><td><strong>Air Jordan 4 — Thunder / Military Black / White Oreo</strong></td><td>PK</td><td>$120–$155</td><td>Most realistic silhouette to replicate. Thunder is #1 Jordan 4 colorway right now.</td></tr>'
+             '<tr><td>3</td><td><strong>Travis Scott x Jordan 1 Low — Pink Pack</strong></td><td>LJR/PK</td><td>$140–$170</td><td>Retail May 22 — W2C requests already building. Stock ahead of drop.</td></tr>'
+             '<tr><td>4</td><td><strong>Virgil Abloh Archive x AJ1 High "Alaska"</strong></td><td>LJR</td><td>$180–$250</td><td>Retail March 28, ~20k pairs globally. Most hyped sneaker of 2026.</td></tr>'
+             '<tr><td>5</td><td><strong>Air Jordan 4 OG "Bred" (OG Nike Air heel)</strong></td><td>PK</td><td>$130–$155</td><td>Black Friday 2026 retail drop. Start sourcing Q2.</td></tr>'
+             '</tbody></table></div>')
+
+    # ── Sneakers Tier 2 ───────────────────────────────────────────────────
+    p.append(_sec("Sneakers — Tier 2: High Demand (Core Inventory)"))
+    p.append('<div class="table-wrap"><table class="data-table"><thead><tr>'
+             '<th data-sort>#</th><th data-sort>Item</th><th data-sort>Best Batch</th>'
+             '<th data-sort>Rep Price</th><th>Key Signal</th></tr></thead><tbody>'
+             '<tr><td>6</td><td><strong>Nike Dunk Low "Panda"</strong></td><td>H12/OG</td><td>$80–$110</td><td>Evergreen — still #1 Dunk colorway 5 years running.</td></tr>'
+             '<tr><td>7</td><td><strong>Adidas Samba OG / Collab Versions</strong></td><td>—</td><td>$40–$80</td><td>Search trend index hit 100 in Nov 2025. Wales Bonner / Sporty &amp; Rich drive most W2C.</td></tr>'
+             '<tr><td>8</td><td><strong>Yeezy Boost 350 V2 — Zebra / Beluga / Static Black Reflective</strong></td><td>PK/GD</td><td>$100–$140</td><td>Demand stable post-Ye split. Zebra and Beluga are evergreen staples.</td></tr>'
+             '<tr><td>9</td><td><strong>Nike Air Force 1 Low — Triple White / NOCTA</strong></td><td>PK/LJR</td><td>$75–$140</td><td>Most replicated Nike silhouette overall.</td></tr>'
+             '<tr><td>10</td><td><strong>Air Jordan 11 "Space Jam"</strong></td><td>H12/OWF</td><td>$140–$175</td><td>Dec 12 retail + limited Galaxy variant = collector-level W2C demand.</td></tr>'
+             '<tr><td>11</td><td><strong>New Balance 9060 — Sea Salt / Grey / No Sew 2026</strong></td><td>Emerging</td><td>$90–$125</td><td>Gen Z sneaker of 2026. Chunky tech runner trend is sustained.</td></tr>'
+             '<tr><td>12</td><td><strong>New Balance 550 — White/Green, White/Navy</strong></td><td>Emerging</td><td>$85–$115</td><td>ALD cultural cachet still driving strong demand.</td></tr>'
+             f'<tr><td>13</td><td><strong style="color:{gc}">ASICS Gel-Kayano 14 — JJJJound collabs / metallic</strong></td><td>Emerging</td><td>$80–$115</td><td><strong>Fastest-growing silhouette right now.</strong> Gorpcore + JJJJound credibility.</td></tr>'
+             '<tr><td>14</td><td><strong>Balenciaga Triple S</strong></td><td>—</td><td>$60–$100</td><td>Saves $800+ vs. retail. Perennial top seller.</td></tr>'
+             '<tr><td>15</td><td><strong>Travis Scott AJ1 Low — Mocha / Olive (prior releases)</strong></td><td>LJR/PK</td><td>$140–$175</td><td>Evergreen. Reverse swoosh accuracy is the #1 QC checkpoint.</td></tr>'
+             '</tbody></table></div>')
+
+    # ── Weidian Live Sales ─────────────────────────────────────────────────
+    p.append(_sec("Weidian Live Sales Data", "Verified transaction volume from JadeShip — highest-confidence numbers in this report."))
+    p.append(_exp(f'These items have <strong>confirmed purchase volume</strong>, not just discussion — real sales tracked across 24+ buying agents.', "green"))
+    p.append('<div class="table-wrap"><table class="data-table"><thead><tr>'
+             '<th>Item</th><th data-sort>Sales Signal</th></tr></thead><tbody>'
+             '<tr><td><strong>NB P-6000 / LINK1 batch</strong></td><td>#1 on 3-month chart — 1,166 verified sales</td></tr>'
+             '<tr><td><strong>Nike Air Max 95 style (REAL GX batch)</strong></td><td>#2 on 3-month chart — 863 verified sales</td></tr>'
+             '<tr><td><strong>NB GATS "German Trainer" (Maggie Margiel batch)</strong></td><td>Appears on 7-day, 30-day AND 3-month charts — most consistent multi-timeframe performer</td></tr>'
+             '<tr><td><strong>DC Series skate-style</strong></td><td>846 sales over 3 months — steady consistent performer</td></tr>'
+             '</tbody></table></div>')
+
+    # ── Apparel ────────────────────────────────────────────────────────────
+    p.append(_sec("Apparel — Top 10"))
+    p.append('<div class="table-wrap"><table class="data-table"><thead><tr>'
+             '<th data-sort>#</th><th data-sort>Item</th><th data-sort>Rep Price</th><th>Demand Signal</th></tr></thead><tbody>'
+             '<tr><td>1</td><td><strong>Fear of God Essentials Hoodie</strong></td><td>$20–$60</td><td>#1 most repped streetwear piece. Appears in every community.</td></tr>'
+             '<tr><td>2</td><td><strong>Fear of God Essentials Sweatpants</strong></td><td>$25–$45</td><td>High bundle demand with the hoodie.</td></tr>'
+             '<tr><td>3</td><td><strong>Supreme Box Logo Hoodie / Tee</strong></td><td>$15–$60</td><td>All-time staple. Tee as low as $15 on Kakobuy.</td></tr>'
+             f'<tr><td>4</td><td><strong style="color:{gc}">BAPE Shark Hoodie</strong></td><td>$18–$50</td><td><strong>Comeback confirmed.</strong> Going viral in 2025–2026. Reps near-indistinguishable from retail.</td></tr>'
+             '<tr><td>5</td><td><strong>Carhartt WIP Jacket / Beanie / Accessories</strong></td><td>$25–$60</td><td>Highest margin-to-risk ratio item on this list. Beanie especially.</td></tr>'
+             '<tr><td>6</td><td><strong>Stone Island Patch Hoodie / Sweatshirt</strong></td><td>$35–$60</td><td>AW25 colorways in demand. Compass badge placement is key QC check.</td></tr>'
+             '<tr><td>7</td><td><strong>Cargo Pants</strong> (Carhartt-style / Balenciaga / unbranded)</td><td>$25–$65</td><td>Cross-community trend. Appears in every subreddit cluster.</td></tr>'
+             '<tr><td>8</td><td><strong>Moncler Maya Down Jacket</strong></td><td>$100–$200</td><td>Winter 2025–2026 peak. Down fill and arm badge stitching are QC priorities.</td></tr>'
+             '<tr><td>9</td><td><strong>Arc\'teryx Beta AR / Alpha SV Jacket</strong></td><td>$100–$200</td><td>Gorpcore trend is sustained. GORE-TEX claims heavily discussed in communities.</td></tr>'
+             f'<tr><td>10</td><td><strong>Oversized basics</strong> (blank hoodies, heavy tees, fleece sweats)</td><td>$20–$40</td><td>Weidian\'s <strong>highest price-to-quality category</strong>. Extended sizing 2XL–4XL is underserved.</td></tr>'
+             '</tbody></table></div>')
+
+    # ── Bags & Accessories ─────────────────────────────────────────────────
+    p.append(_sec("Bags &amp; Accessories — Top 10"))
+    p.append(_exp(f'Retail price inflation of <strong>25–60%</strong> on luxury bags is a structural tailwind for rep demand — '
+                  f'not a cycle. Women\'s bag demand is <strong>growing fastest</strong>.', "purple"))
+    p.append('<div class="table-wrap"><table class="data-table"><thead><tr>'
+             '<th data-sort>#</th><th data-sort>Item</th><th data-sort>Rep Price</th><th>Demand Signal</th></tr></thead><tbody>'
+             '<tr><td>1</td><td><strong>Chanel Classic Flap Bag</strong> (medium / jumbo)</td><td>$200–$600</td><td>#1 most repped bag in the world. Retail hikes are a structural demand tailwind.</td></tr>'
+             '<tr><td>2</td><td><strong>Hermès Birkin / Kelly</strong></td><td>$300–$800</td><td>Kelly surpassed Birkin on TikTok in 2025. Retail quota system = reps are the only route.</td></tr>'
+             '<tr><td>3</td><td><strong>Louis Vuitton Neverfull / Speedy</strong></td><td>$150–$400</td><td>LV Neverfull holds 100%+ resale value — fuels rep demand.</td></tr>'
+             '<tr><td>4</td><td><strong>Bottega Veneta Padded Cassette / Jodie</strong></td><td>$200–$500</td><td>Daniel Lee-era designs remain most wanted. Jing factory specializes in BV weave.</td></tr>'
+             '<tr><td>5</td><td><strong>Maison Margiela Tabi</strong> (boots + low sneakers)</td><td>$50–$90</td><td>High demand especially in women\'s sizes. Weidian showing consistent volume.</td></tr>'
+             f'<tr><td>6</td><td><strong style="color:{gc}">Loro Piana Summer Walk Loafer</strong></td><td>$80–$150</td><td><strong>Surging.</strong> TikTok searches skyrocketing. Quiet luxury consumer. Retail $900+.</td></tr>'
+             '<tr><td>7</td><td><strong>Van Cleef Alhambra Necklace</strong> (4-motif)</td><td>$15–$40</td><td>RepLadies-adjacent demand growing. High volume at low price = strong sell-through.</td></tr>'
+             '<tr><td>8</td><td><strong>Rolex Submariner / Datejust</strong></td><td>$100–$200+</td><td>CSSBuy watch community is active. Movement grade (NH35 vs. clone) drives buying decisions.</td></tr>'
+             '<tr><td>9</td><td><strong>Cuban chains / hip-hop jewelry</strong></td><td>Under $30</td><td>Carrie Jewelry seller: 41k+ transactions at 99.1% rating on DHgate.</td></tr>'
+             '<tr><td>10</td><td><strong>Maison Margiela MM6 Numeric Hoodie</strong></td><td>$30–$50</td><td>Trending heavily on Mulebuy haul aggregations. Clean embroidery noted as strong.</td></tr>'
+             '</tbody></table></div>')
+
+    # ── Macro Trends ───────────────────────────────────────────────────────
+    p.append(_sec("6 Macro Trends to Act On"))
+    p.append(f'<div class="action-box"><div class="action-title" style="color:{ac}">1. Pre-release sourcing is your competitive advantage</div>'
+             f'<p style="font-size:0.85rem;color:var(--text-secondary);margin:4px 0 0">Travis Scott Pink Pack (May), AJ4 Bred (Black Friday), AJ11 Space Jam (Dec 12) all have confirmed drops. W2C posts build months before retail — stock reps ahead of these windows.</p></div>')
+    p.append(f'<div class="action-box"><div class="action-title" style="color:{bc}">2. 2026 tariffs are sending mainstream buyers your way</div>'
+             f'<p style="font-size:0.85rem;color:var(--text-secondary);margin:4px 0 0">US import tariffs have pushed first-time buyers onto DHgate and rep communities. Lululemon leggings dupes and designer bags are the entry point for this new audience.</p></div>')
+    p.append(f'<div class="action-box"><div class="action-title" style="color:{gc}">3. New Balance / ASICS are absorbing post-Samba demand</div>'
+             f'<p style="font-size:0.85rem;color:var(--text-secondary);margin:4px 0 0">As Samba saturates, NB 9060, NB 550, NB 1906R, and ASICS GEL-Kayano 14 are absorbing the next wave. Batch quality is maturing fast — get ahead of it now.</p></div>')
+    p.append(f'<div class="action-box"><div class="action-title" style="color:{pc}">4. Women\'s / RepLadies demand is a structural growth segment</div>'
+             f'<p style="font-size:0.85rem;color:var(--text-secondary);margin:4px 0 0">Chanel, Hermès, LV bags, Margiela Tabi, Van Cleef jewelry, and Bottega bags are all surging on AllChinaBuy and Mulebuy. This is not a cycle.</p></div>')
+    p.append(f'<div class="action-box"><div class="action-title" style="color:{gc}">5. Chinese domestic brands are the sleeper opportunity</div>'
+             f'<p style="font-size:0.85rem;color:var(--text-secondary);margin:4px 0 0">Li-Ning "China Exclusive" colorways, ANTA Klay Thompson line, Xtep 160X running shoes — authentic Chinese domestic products unavailable in Western retail. No rep stigma, genuine product, unique colorways. $25–$55 through agents.</p></div>')
+    p.append(f'<div class="action-box"><div class="action-title" style="color:{ac}">6. Extended sizing (2XL–4XL) is a market gap</div>'
+             f'<p style="font-size:0.85rem;color:var(--text-secondary);margin:4px 0 0">r/BigBoiRepFashion signals that plus-size rep fashion is heavily underserved. Oversized hoodies, cargo pants, and BAPE Shark Hoodies in extended sizes are requested without adequate supply.</p></div>')
+
+    # ── Dashboard alignment ────────────────────────────────────────────────
+    p.append(_sec("Your Dashboard vs. This Report — Alignment Check"))
+    p.append(_exp(
+        "<strong>What your data already caught correctly:</strong> "
+        "Various shoes gap (202) = Jordan 1s &amp; Dunks confirmed. "
+        "Balenciaga gap (147) = Triple S confirmed top-10. "
+        "Hoodie gap (140) = Essentials, BAPE, Supreme all confirmed. "
+        "Yeezy gap (71) = Zebra/Beluga confirmed high-demand. "
+        "Watch gap (141) = Rolex confirmed on CSSBuy.", "green"))
+    p.append(_exp(
+        "<strong>Items your dashboard is potentially underweighting:</strong> "
+        "ASICS Gel-Kayano 14 (fastest growing — not in your top unmet list yet). "
+        "Loro Piana loafers (quiet luxury surge — underrepresented in your subreddits). "
+        "Li-Ning / ANTA domestic brands (new category entirely). "
+        "Extended sizing demand (BigBoi segment).", "amber"))
+
+    p.append(f'<p style="font-size:0.72rem;color:var(--text-muted);margin-top:24px">'
+             f'Report generated March 13, 2026. Sources: r/FashionReps, r/DesignerReps, r/QualityReps, r/LuxuryReps, '
+             f'r/Repsneakers, r/sneakerreps, r/repbudgetsneakers, r/DHgate, r/BudgetBatch, r/weidianwarriors, '
+             f'r/CloseToRetail, r/BigBoiRepFashion, r/Sugargoo, r/Superbuy, r/cssbuy, r/MulebuyCommunity, r/AllChinabuy '
+             f'+ JadeShip live Weidian sales data + community spreadsheet aggregators.</p>')
+    p.append("</div>")
+    return "\n".join(p)
+
+
 def _tab_signals(D):
     bc, gc, rc, ac = C["blue"], C["green"], C["red"], C["amber"]
     p = ['<div class="page-content">']
@@ -649,6 +785,7 @@ def _build_page(all_data, default_data):
         ("trends", "Market Trends", _tab_trends(default_data)),
         ("channels", "Channel Analysis", _tab_channels(default_data)),
         ("signals", "Demand Signals", _tab_signals(default_data)),
+        ("report", "Market Report", _tab_market_report(default_data)),
     ]
     nav = ""
     for i, (tid, label, _) in enumerate(tabs):
