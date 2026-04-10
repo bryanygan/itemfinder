@@ -145,6 +145,22 @@ body {
 nav.custom-tabs { display: flex; overflow-x: auto; }
 nav.custom-tabs .tab { font-family: inherit; outline: none; cursor: pointer; white-space: nowrap; }
 
+/* ── Three-column layout ── */
+.three-col { display: flex; gap: 20px; flex-wrap: wrap; margin-bottom: 24px; }
+.three-col > div { flex: 1; min-width: 280px; }
+
+/* ── Recommendation badges ── */
+.rec-buy-now { color: var(--accent-green); font-weight: 700; }
+.rec-strong-buy { color: #4ade80; font-weight: 600; }
+.rec-buy { color: var(--accent-blue); font-weight: 600; }
+.rec-watch { color: var(--accent-amber); font-weight: 500; }
+.rec-hold { color: var(--text-muted); font-weight: 500; }
+
+/* ── Demand level badges ── */
+.demand-very-high { color: var(--accent-red); font-weight: 700; }
+.demand-high { color: var(--accent-amber); font-weight: 600; }
+.demand-moderate { color: var(--accent-blue); font-weight: 500; }
+
 /* ── Responsive ── */
 @media (max-width: 768px) {
     .site-header { flex-direction: column; gap: 12px; padding: 16px; }
