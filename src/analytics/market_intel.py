@@ -16,6 +16,207 @@ log = get_logger("market_intel")
 
 # ── Curated external data (April 2026 research) ──────────────────────────
 
+# ── Purchase links sourced from Reddit communities & Weidian/1688 ────────
+# Links verified April 2026 — check freshness before purchasing.
+# Use a shopping agent (Superbuy, Pandabuy, CSSBuy, etc.) for Weidian/1688.
+PURCHASE_LINKS: dict[str, dict] = {
+    # ── SNEAKERS ─────────────────────────────────────────────────────────
+    "Jordan|Jordan 1 OW (Off-White)": {
+        "weidian": "https://weidian.com/item.html?itemID=6245294893",
+        "alt_seller": "https://weidian.com/?userid=1707349219",  # OG batch store
+        "batch": "LJR / OG",
+        "notes": "LJR from 168shops or SK; OG batch also strong",
+    },
+    "Jordan|Travis Scott x AJ1 Low OG": {
+        "weidian": "https://weidian.com/item.html?itemID=6245294893",
+        "yupoo": "https://168shops.x.yupoo.com/",
+        "batch": "LJR",
+        "notes": "168shops (WhatsApp +8613112879490); also available from 259soles/R1 Official",
+    },
+    "Nike|Dunk Low (various)": {
+        "weidian": "https://weidian.com/item.html?itemID=4327841047",
+        "weidian_alt": "https://weidian.com/item.html?itemID=4433324160",
+        "batch": "M Batch",
+        "notes": "M Batch from A1 Top or CSJ; best value-to-quality ratio",
+    },
+    "Jordan|Travis Scott x AJ4 Cactus Jack": {
+        "weidian": "https://weidian.com/item.html?itemID=6471286597",
+        "batch": "PK 4.0",
+        "notes": "PK batch; also available via 91sheep (weidian.com/?userid=1669947465)",
+    },
+    "Yeezy|350 V2": {
+        "weidian": "https://weidian.com/item.html?itemID=4472539353",
+        "weidian_alt": "https://weidian.com/item.html?itemID=4433659222",
+        "yupoo": "https://joystudio.x.yupoo.com/categories/3747889",
+        "batch": "PK BASF / LW",
+        "notes": "LW batch from Lol2021; PK BASF from JoyStudio. ~165-180 CNY",
+    },
+    "Jordan|Jordan 4 (various)": {
+        "weidian": "https://weidian.com/?userid=1625671124",
+        "batch": "PK / LJR",
+        "notes": "Multiple colorways available; check 91sheep or CNFactory stores",
+    },
+    "Jordan|Jordan 1 x Dior": {
+        "weidian": "https://weidian.com/?userid=1707349219",  # OG batch store
+        "batch": "LJR / OG",
+        "notes": "Premium batch; QC carefully — suede and Dior pattern accuracy varies",
+    },
+    "Adidas|Samba OG": {
+        "yupoo": "https://shark-breeder.x.yupoo.com/albums/161979028",
+        "batch": "H12 / GOD",
+        "notes": "Budget-friendly ~120-200 CNY; GOD batch from shark-breeder",
+    },
+    "New Balance|9060": {
+        "spreadsheet": "https://www.weidianspreadsheet.org/",
+        "batch": "H12",
+        "notes": "Search weidianspreadsheet.org for latest verified links; improving batches",
+    },
+    "Maison Margiela|GATs": {
+        "spreadsheet": "https://www.weidianspreadsheet.org/",
+        "notes": "Search QualityReps/WeidianWarriors for latest QC posts; niche item",
+    },
+    "On Running|Cloudtilt": {
+        "resource": "https://www.jadeship.com/feed/top/30-days/weidian",
+        "notes": "#1 Weidian seller (252 units/30d); search JadeShip for current links",
+    },
+    "Jordan|Jordan 1 High OG": {
+        "weidian": "https://weidian.com/?userid=1625671124",
+        "batch": "LJR",
+        "notes": "LJR batch standard; available from most major Weidian sellers",
+    },
+    "Balenciaga|Speed Trainer": {
+        "yupoo": "https://shark-breeder.x.yupoo.com/",
+        "batch": "GT / PK",
+        "notes": "GOOD batch from shark-breeder; GT batch for text placement accuracy",
+    },
+    "Balenciaga|Track Runner": {
+        "yupoo": "https://shark-breeder.x.yupoo.com/albums/164000970",
+        "batch": "GOOD / GT",
+        "notes": "shark-breeder GOOD batch; also check yolo66 (yolo66.x.yupoo.com)",
+    },
+    "Dior|B23 High Top": {
+        "spreadsheet": "https://www.weidianspreadsheet.org/",
+        "notes": "Search DesignerReps for latest QC; Kevin is a commonly recommended seller",
+    },
+    "Nike|Dunk Low Panda": {
+        "weidian": "https://weidian.com/item.html?itemID=4327841047",
+        "batch": "M Batch",
+        "notes": "Same M Batch link as general Dunks; most popular single colorway",
+    },
+    "Nike|Air Force 1 Low White": {
+        "weidian": "https://weidian.com/?userid=1611117650",  # CNFactory
+        "notes": "CNFactory or WTG for budget; 1688 bulk available for lowest price",
+    },
+    # ── CLOTHING ─────────────────────────────────────────────────────────
+    "Fear of God|Essentials Hoodie / Sweats": {
+        "spreadsheet": "https://www.kakobuyspreadsheetbest.com/brand/stone-island/",
+        "resource": "https://findsspreadsheet.com/",
+        "notes": "Search 1688Reps/FashionReps for 'Essentials'; Gman and Singor are top sellers",
+    },
+    "Fear of God|Essentials Sweatpants": {
+        "resource": "https://findsspreadsheet.com/",
+        "notes": "Same sellers as Essentials hoodies; Gman/Singor via Weidian agent",
+    },
+    "Chrome Hearts|Hoodies / Jewelry": {
+        "yupoo": "https://patternerpp.x.yupoo.com/albums/152926670",
+        "notes": "Eye Chart Dagger Zip-Up ~480 CNY; also search QualityReps for budget finds",
+    },
+    "Gallery Dept|Tees / Jeans / Hoodies": {
+        "yupoo": "https://www.ayfactoryyupoo.com/gallery-dept/",
+        "resource": "https://wiki.repsguide.com/index.php/Fashion",
+        "notes": "ayfactory for premium; search FashionReps/QualityReps for budget tees",
+    },
+    "Sp5der|Hoodies / Pants": {
+        "yupoo": "https://www.ayfactoryyupoo.com/sp5der/",
+        "resource": "https://docs.google.com/spreadsheets/d/1mvSc9pYvDjqM14ZHhOx6Wm99ZTaQ4eewStxkb3JrEL8/edit",
+        "notes": "Budget batches on 1688; ~12-25 USD range; check QC before buying",
+    },
+    "Trapstar|Tracksuits / Hoodies": {
+        "spreadsheet": "https://www.repspreadsheets.org/",
+        "notes": "GOAT official on Weidian; search FashionReps for latest W2C links",
+    },
+    "Corteiz|Cargos / Hoodies": {
+        "spreadsheet": "https://www.repspreadsheets.org/",
+        "notes": "Search FashionReps for latest links; popular UK streetwear",
+    },
+    "Supreme|Box Logo Hoodie / Tees": {
+        "spreadsheet": "https://www.repspreadsheets.org/",
+        "notes": "Mirror and Teenage Club are top sellers for BOGO hoodies",
+    },
+    "Stussy|Tees / Hoodies (8 Ball)": {
+        "spreadsheet": "https://www.repspreadsheets.org/",
+        "notes": "Budget finds on 1688; ~10-20 USD range",
+    },
+    "Amiri|Jeans / Tees": {
+        "yupoo": "https://www.ayfactoryyupoo.com/",
+        "notes": "QualityReps/DesignerReps for QC; Mike Best is commonly cited seller",
+    },
+    "Off-White|Tees / Hoodies / Belts": {
+        "spreadsheet": "https://www.repspreadsheets.org/",
+        "notes": "FakeLab is the long-standing recommended seller; search FashionReps",
+    },
+    # ── OUTERWEAR ────────────────────────────────────────────────────────
+    "Moncler|Maya Jacket / Vest": {
+        "yupoo": "https://monclerdowncoat.x.yupoo.com/categories/3888422",
+        "notes": "TopMoncler (WeChat: Topmoncler8, WhatsApp: +8566423566); 2025-2026 collection",
+    },
+    "Stone Island|Sweatshirts / Cargos": {
+        "yupoo": "https://topstoney.x.yupoo.com/",
+        "taobao": "https://shop496484801.taobao.com",
+        "batch": "TopStoney",
+        "notes": "TopStoney (WeChat: topstoneycn, WhatsApp: +86 18679232891); king of SI reps",
+    },
+    "Arc'teryx|Beta LT / Shells": {
+        "yupoo": "https://repcourier.x.yupoo.com/categories/3344088",
+        "yupoo_alt": "https://shark-breeder.x.yupoo.com/categories/4509036",
+        "notes": "RepCourier for Beta LT ~400 CNY; also Zoestreet and shark-breeder",
+    },
+    "The North Face|Nuptse / Supreme Collab": {
+        "yupoo": "https://158sir.x.yupoo.com/",
+        "spreadsheet": "https://www.repspreadsheets.org/",
+        "notes": "Husky and 0832club are top Nuptse sellers; search FashionReps for links",
+    },
+    # ── BAGS & ACCESSORIES ───────────────────────────────────────────────
+    "Louis Vuitton|Keepall / Neverfull": {
+        "resource": "https://www.jadeship.com/",
+        "notes": "Search DesignerReps for latest trusted sellers; HyperPeter, Nina, Old Cobbler",
+    },
+    "Dior|Saddle Bag / B23": {
+        "spreadsheet": "https://www.weidianspreadsheet.org/",
+        "notes": "Search DesignerReps; Angel/Aadi are commonly recommended for Dior bags",
+    },
+    "Balenciaga|City Bag (comeback)": {
+        "spreadsheet": "https://www.weidianspreadsheet.org/",
+        "notes": "DesignerReps/LuxuryReps for QC posts; limited Weidian options — agent sellers",
+    },
+    "Bottega Veneta|Cassette Bag": {
+        "spreadsheet": "https://www.weidianspreadsheet.org/",
+        "notes": "Search DesignerReps; Jing factory commonly cited for BV bags",
+    },
+    "Chanel|Classic Flap": {
+        "spreadsheet": "https://www.weidianspreadsheet.org/",
+        "notes": "DesignerReps/LuxuryReps; 187 factory and Xiao C are top-tier for Chanel",
+    },
+    "Prada / Miu Miu|Leather Goods": {
+        "spreadsheet": "https://www.weidianspreadsheet.org/",
+        "notes": "Rising demand; search DesignerReps for latest verified sellers",
+    },
+}
+
+# ── Aggregated spreadsheet & resource links ──────────────────────────────
+RESOURCE_LINKS: dict[str, str] = {
+    "Rep Spreadsheets (master)": "https://www.repspreadsheets.org/",
+    "Weidian Spreadsheet (8500+ items)": "https://www.weidianspreadsheet.org/",
+    "Taobao Spreadsheet": "https://taobao-spreadsheet.net/",
+    "Kakobuy Spreadsheet": "https://www.kakobuyspreadsheetbest.com/",
+    "Finds Spreadsheet": "https://findsspreadsheet.com/",
+    "W2C Rep Guide": "https://w2crep.com",
+    "JadeShip (Weidian/1688 search)": "https://www.jadeship.com/",
+    "JadeShip Top 30-Day Weidian": "https://www.jadeship.com/feed/top/30-days/weidian",
+    "RepsGuide Wiki": "https://wiki.repsguide.com/index.php/Fashion",
+    "CNFans Spreadsheet": "https://www.cnfans-sheets.com/",
+}
+
 # Live Weidian sales data from JadeShip/RepArchive agent tracking (last 30 days)
 WEIDIAN_TOP_SELLERS: list[dict] = [
     {"rank": 1, "item": "Cloudtilt", "brand": "On Running", "category": "Sneakers", "units_sold": 252, "platform": "Weidian", "trend": "rising"},
@@ -162,6 +363,30 @@ def get_subreddit_stats() -> list[dict]:
     return SUBREDDIT_STATS
 
 
+def get_purchase_links() -> dict[str, dict]:
+    """Return all purchase links keyed by 'brand|item'."""
+    return PURCHASE_LINKS
+
+
+def get_resource_links() -> dict[str, str]:
+    """Return aggregated spreadsheet & resource links."""
+    return RESOURCE_LINKS
+
+
+def get_purchase_link(brand: str, item: str) -> dict | None:
+    """Look up purchase link for a specific brand/item combo."""
+    key = f"{brand}|{item}"
+    if key in PURCHASE_LINKS:
+        return PURCHASE_LINKS[key]
+    # Fuzzy match — check if brand or item substring matches
+    for k, v in PURCHASE_LINKS.items():
+        k_brand, k_item = k.split("|", 1)
+        if (brand.lower() in k_brand.lower() or k_brand.lower() in brand.lower()) and \
+           (item.lower() in k_item.lower() or k_item.lower() in item.lower()):
+            return v
+    return None
+
+
 def category_breakdown() -> list[dict]:
     """Break down external trending items by category."""
     cats: dict[str, dict] = defaultdict(lambda: {
@@ -196,6 +421,7 @@ def purchase_recommendations(conn: sqlite3.Connection | None = None,
     for item in REDDIT_TRENDING:
         key = f"{item['brand']}|{item['item']}"
         ext_score = _DEMAND_SCORE.get(item["demand"], 0.5)
+        links = PURCHASE_LINKS.get(key, {})
         recs[key] = {
             "brand": item["brand"],
             "item": item["item"],
@@ -208,6 +434,8 @@ def purchase_recommendations(conn: sqlite3.Connection | None = None,
             "subreddits": item.get("subreddits", "—"),
             "demand_level": item["demand"],
             "recommendation": "",
+            "purchase_link": links.get("weidian") or links.get("yupoo") or links.get("taobao") or links.get("spreadsheet", ""),
+            "purchase_notes": links.get("notes", ""),
         }
 
     # Boost from Weidian/1688 actual sales data
@@ -220,6 +448,7 @@ def purchase_recommendations(conn: sqlite3.Connection | None = None,
                 min(recs[key]["external_score"] + (trend_boost * 0.15) + (vol_boost * 0.15), 1.0), 2
             )
         else:
+            item_links = PURCHASE_LINKS.get(key, {})
             recs[key] = {
                 "brand": item["brand"],
                 "item": item["item"],
@@ -232,6 +461,8 @@ def purchase_recommendations(conn: sqlite3.Connection | None = None,
                 "subreddits": "—",
                 "demand_level": item["trend"],
                 "recommendation": "",
+                "purchase_link": item_links.get("weidian") or item_links.get("yupoo") or item_links.get("taobao") or item_links.get("spreadsheet", ""),
+                "purchase_notes": item_links.get("notes", ""),
             }
 
     # Enrich with internal DB data when available

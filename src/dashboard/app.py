@@ -19,6 +19,8 @@ from src.analytics.market_intel import (
     get_1688_sales,
     get_batch_guide,
     get_external_trending,
+    get_purchase_links,
+    get_resource_links,
     get_subreddit_stats,
     get_upcoming_releases,
     get_weidian_sales,
@@ -515,6 +517,35 @@ def _signals(D):
     ], className="page-content")
 
 
+def _purchase_links_table():
+    """Build a table of all purchase links from market intel."""
+    links = get_purchase_links()
+    rows = []
+    for key, info in links.items():
+        brand, item = key.split("|", 1)
+        link = info.get("weidian") or info.get("yupoo") or info.get("taobao") or info.get("spreadsheet") or info.get("resource", "")
+        rows.append({
+            "brand": brand,
+            "item": item,
+            "batch": info.get("batch", "—"),
+            "link": link,
+            "notes": info.get("notes", ""),
+        })
+    df = pd.DataFrame(rows)
+    return make_table(df, {
+        "brand": "Brand", "item": "Item", "batch": "Best Batch",
+        "link": "Purchase Link", "notes": "Notes",
+    }, page_size=20)
+
+
+def _resource_links_table():
+    """Build a table of community resource links."""
+    resources = get_resource_links()
+    rows = [{"resource": name, "link": url} for name, url in resources.items()]
+    df = pd.DataFrame(rows)
+    return make_table(df, {"resource": "Resource", "link": "Link"})
+
+
 # ── Market Intelligence tab ──────────────────────────────────────────────
 
 def _market_intel(D):
@@ -712,6 +743,8 @@ def _market_intel(D):
             "combined_score": "Score", "demand_level": "Demand",
             "best_batch": "Best Batch", "price_range": "Price",
             "recommendation": "Action",
+            "purchase_link": "Purchase Link",
+            "purchase_notes": "Notes",
         }),
 
         # ── Live Sales Data ──
@@ -856,6 +889,21 @@ def _market_intel(D):
             html.Strong("JadeShip/RepArchive"), " — Live sales tracking across Weidian, 1688, "
             "Taobao with agent purchase data powering the charts above.",
         ]),
+
+        # ── Purchase Links & Resources ──
+        section("Purchase Links & Resources",
+                "Direct Weidian/Yupoo/Taobao links and community spreadsheets. Use a shopping agent to purchase."),
+        explainer([
+            html.Strong("How to buy: "),
+            "Copy any Weidian/Taobao link into a shopping agent (Pandabuy, CSSBuy, Superbuy, etc.). ",
+            "Yupoo links are catalogs — find the Weidian/Taobao link on the seller's page. ",
+            html.Strong("Always check QC photos"), " before confirming shipment.",
+        ], "green"),
+        _purchase_links_table(),
+
+        section("Community Spreadsheets & Tools",
+                "Master link directories maintained by Reddit communities — updated regularly."),
+        _resource_links_table(),
 
     ], className="page-content")
 
