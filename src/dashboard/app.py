@@ -38,6 +38,7 @@ from src.analytics.trends import (
 )
 from src.common.db import get_connection, processed_mention_count, raw_message_count
 from src.common.log_util import get_logger
+from src.dashboard.buying_guide import _buying_guide
 from src.dashboard.components import (
     C_AMBER, C_BLUE, C_CYAN, C_GREEN, C_PURPLE, C_RED,
     action_box, chart_card, empty_fig, explainer, kpi,
@@ -967,6 +968,8 @@ app.layout = html.Div([
                 className="tab", selected_className="tab--selected"),
         dcc.Tab(label="Demand Signals", children=html.Div(id="signals-content"),
                 className="tab", selected_className="tab--selected"),
+        dcc.Tab(label="Buying Guide", children=html.Div(id="buying-guide-content"),
+                className="tab", selected_className="tab--selected"),
     ]),
 
     # Hidden store for items data (used by search callback)
@@ -991,6 +994,7 @@ app.layout = html.Div([
      Output("trends-content", "children"),
      Output("channels-content", "children"),
      Output("signals-content", "children"),
+     Output("buying-guide-content", "children"),
      Output("hdr-msgs", "children"),
      Output("hdr-mentions", "children"),
      Output("hdr-brands", "children"),
@@ -1015,6 +1019,7 @@ def update_dashboard(days, platform):
         _trends(D),
         _channels_tab(D),
         _signals(D),
+        _buying_guide(D),
         f"{D['raw']:,}",
         f"{D['mentions']:,}",
         str(len(D["brands"])),
