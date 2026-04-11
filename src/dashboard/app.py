@@ -10,8 +10,22 @@ from datetime import datetime, timedelta
 
 import pandas as pd
 import plotly.express as px
+import plotly.graph_objects as go
 from dash import Dash, Input, Output, callback, dcc, html
 
+from src.analytics.market_intel import (
+    category_breakdown as mi_category_breakdown,
+    demand_heatmap_data,
+    get_1688_sales,
+    get_batch_guide,
+    get_external_trending,
+    get_subreddit_stats,
+    get_upcoming_releases,
+    get_weidian_sales,
+    platform_comparison,
+    purchase_recommendations,
+    trend_direction_summary,
+)
 from src.analytics.sales_intel import (
     brand_cross_sell, buyer_profiles, color_demand,
     conversion_tracking, inventory_recommendations,
@@ -501,6 +515,351 @@ def _signals(D):
     ], className="page-content")
 
 
+# ── Market Intelligence tab ──────────────────────────────────────────────
+
+def _market_intel(D):
+    """External market intelligence — Reddit trends, Weidian/1688 sales,
+    batch guides, upcoming releases, and purchase recommendations."""
+
+    ext_trending = pd.DataFrame(get_external_trending())
+    weidian_df = pd.DataFrame(get_weidian_sales())
+    sales_1688_df = pd.DataFrame(get_1688_sales())
+    batch_df = pd.DataFrame(get_batch_guide())
+    releases_df = pd.DataFrame(get_upcoming_releases())
+    subs_df = pd.DataFrame(get_subreddit_stats())
+    cat_df = pd.DataFrame(mi_category_breakdown())
+    plat_df = pd.DataFrame(platform_comparison())
+    heatmap_raw = demand_heatmap_data()
+    trend_dirs = pd.DataFrame(trend_direction_summary())
+
+    # Purchase recommendations (enriched with internal data if available)
+    try:
+        conn = get_connection()
+        recs = purchase_recommendations(conn)
+        conn.close()
+    except Exception:
+        recs = purchase_recommendations()
+    recs_df = pd.DataFrame(recs)
+
+    # ── KPI row ──
+    total_items_tracked = len(ext_trending)
+    very_high = len(ext_trending[ext_trending["demand"] == "very_high"]) if not ext_trending.empty else 0
+    total_weidian_sold = weidian_df["units_sold"].sum() if not weidian_df.empty else 0
+    total_1688_sold = sales_1688_df["units_sold"].sum() if not sales_1688_df.empty else 0
+    total_subs_reach = subs_df["members"].sum() if not subs_df.empty else 0
+
+    # ── Demand heatmap ──
+    if heatmap_raw:
+        hm_df = pd.DataFrame(heatmap_raw)
+        brands_hm = hm_df["brand"].unique().tolist()
+        cats_hm = hm_df["category"].unique().tolist()
+        z = []
+        for cat in cats_hm:
+            row = []
+            for brand in brands_hm:
+                match = hm_df[(hm_df["brand"] == brand) & (hm_df["category"] == cat)]
+                row.append(match["demand_score"].values[0] if not match.empty else 0)
+            z.append(row)
+        heatmap_fig = go.Figure(data=go.Heatmap(
+            z=z, x=brands_hm, y=cats_hm,
+            colorscale=[[0, "#1a1d27"], [0.3, "#1e3a5f"], [0.6, "#3b82f6"], [1, "#22c55e"]],
+            hovertemplate="Brand: %{x}<br>Category: %{y}<br>Demand: %{z:.2f}<extra></extra>",
+        ))
+        heatmap_fig.update_layout(xaxis_tickangle=-45)
+    else:
+        heatmap_fig = go.Figure()
+
+    # ── Weidian sales bar chart ──
+    if not weidian_df.empty:
+        weidian_fig = px.bar(
+            weidian_df.sort_values("units_sold", ascending=True),
+            x="units_sold", y="item", orientation="h",
+            color="trend",
+            color_discrete_map={"rising": C_GREEN, "stable": C_BLUE, "cooling": C_AMBER},
+            labels={"units_sold": "Units Sold (30d)", "item": "", "trend": "Trend"},
+            custom_data=["brand"],
+        )
+        weidian_fig.update_traces(
+            hovertemplate="<b>%{customdata[0]}</b> %{y}<br>Units: %{x}<extra></extra>"
+        )
+    else:
+        weidian_fig = go.Figure()
+
+    # ── 1688 sales bar chart ──
+    if not sales_1688_df.empty:
+        fig_1688 = px.bar(
+            sales_1688_df.sort_values("units_sold", ascending=True),
+            x="units_sold", y="item", orientation="h",
+            color="trend",
+            color_discrete_map={"rising": C_GREEN, "stable": C_BLUE, "cooling": C_AMBER},
+            labels={"units_sold": "Units Sold (30d)", "item": "", "trend": "Trend"},
+            custom_data=["brand"],
+        )
+        fig_1688.update_traces(
+            hovertemplate="<b>%{customdata[0]}</b> %{y}<br>Units: %{x}<extra></extra>"
+        )
+    else:
+        fig_1688 = go.Figure()
+
+    # ── Category breakdown pie ──
+    if not cat_df.empty:
+        cat_fig = px.pie(
+            cat_df, values="total", names="category",
+            color_discrete_sequence=[C_BLUE, C_GREEN, C_PURPLE, C_AMBER, C_RED, C_CYAN],
+        )
+    else:
+        cat_fig = go.Figure()
+
+    # ── Subreddit reach bar ──
+    if not subs_df.empty:
+        subs_fig = px.bar(
+            subs_df.sort_values("members", ascending=True),
+            x="members", y="subreddit", orientation="h",
+            color="signal_weight",
+            color_continuous_scale=[[0, "#f59e0b"], [0.5, "#3b82f6"], [1, "#22c55e"]],
+            labels={"members": "Members", "subreddit": "", "signal_weight": "Signal Weight"},
+        )
+    else:
+        subs_fig = go.Figure()
+
+    # ── Trend direction donut ──
+    if not trend_dirs.empty:
+        trend_colors = {"rising": C_GREEN, "stable": C_BLUE, "cooling": C_AMBER}
+        trend_fig = px.pie(
+            trend_dirs, values="count", names="direction",
+            color="direction", color_discrete_map=trend_colors,
+            hole=0.5,
+        )
+    else:
+        trend_fig = go.Figure()
+
+    # ── Platform comparison: top 15 across both platforms ──
+    if not plat_df.empty:
+        top15 = plat_df.head(15)
+        plat_comp_fig = px.bar(
+            top15.sort_values("units_sold", ascending=True),
+            x="units_sold", y="item", orientation="h",
+            color="source",
+            color_discrete_map={"Weidian": C_PURPLE, "1688": C_CYAN},
+            labels={"units_sold": "Units Sold", "item": "", "source": "Platform"},
+            custom_data=["brand"],
+        )
+        plat_comp_fig.update_traces(
+            hovertemplate="<b>%{customdata[0]}</b> %{y}<br>Units: %{x}<extra></extra>"
+        )
+    else:
+        plat_comp_fig = go.Figure()
+
+    # ── Recommendation score distribution ──
+    if not recs_df.empty:
+        top_recs = recs_df.head(20)
+        recs_fig = px.bar(
+            top_recs.sort_values("combined_score", ascending=True),
+            x="combined_score", y=top_recs.apply(
+                lambda r: f"{r['brand']} — {r['item']}", axis=1
+            ).values[::-1] if not top_recs.empty else [],
+            orientation="h",
+            color="combined_score",
+            color_continuous_scale=[[0, "#ef4444"], [0.5, "#f59e0b"], [1, "#22c55e"]],
+            labels={"combined_score": "Opportunity Score", "y": ""},
+        )
+    else:
+        recs_fig = go.Figure()
+
+    # ── Build the page ──
+    return html.Div([
+        # Header explainer
+        explainer([
+            html.Strong("Market Intelligence — External Trend Analysis. "),
+            "This page combines data from ",
+            html.Strong("Reddit communities"), " (FashionReps, Repsneakers, QualityReps, etc.), ",
+            html.Strong("Weidian/1688 live sales"), " (JadeShip/RepArchive agent tracking), ",
+            html.Strong("QC platforms"), " (doppel.fit, FinderQC, FindQC), and ",
+            html.Strong("upcoming hype releases"), " to identify the best items to purchase right now. ",
+            "Data reflects April 2026 market conditions.",
+        ]),
+
+        # KPI Row
+        html.Div([
+            kpi(total_items_tracked, "Items Tracked", C_CYAN),
+            kpi(very_high, "Very High Demand", C_RED),
+            kpi(f"{total_weidian_sold:,}", "Weidian Sales (30d)", C_PURPLE),
+            kpi(f"{total_1688_sold:,}", "1688 Sales (30d)", C_AMBER),
+            kpi(f"{total_subs_reach / 1_000_000:.1f}M", "Reddit Reach", C_GREEN),
+        ], className="kpi-row"),
+
+        # ── Purchase Recommendations ──
+        section("Purchase Recommendations",
+                "Ranked by combined opportunity score (external trends + internal demand signals)."),
+        explainer([
+            html.Strong("Scoring: "),
+            "Items are scored 0–1 by combining Reddit demand signals, Weidian/1688 live sales "
+            "velocity, and internal community data. ",
+            html.Strong("BUY NOW"), " (0.85+) = top priority. ",
+            html.Strong("STRONG BUY"), " (0.70+) = stock immediately. ",
+            html.Strong("BUY"), " (0.55+) = solid opportunity. ",
+            html.Strong("WATCH"), " (0.40+) = monitor.",
+        ], "green"),
+        chart_card("Top 20 Purchase Opportunities — Ranked by Score",
+                   "Green = high opportunity. Red = lower priority. Hover for details.",
+                   dcc.Graph(
+                       figure=style_fig(recs_fig),
+                       config={"displayModeBar": False},
+                       style={"height": "520px"},
+                   )),
+        make_table(recs_df.head(30), {
+            "brand": "Brand", "item": "Item", "category": "Category",
+            "combined_score": "Score", "demand_level": "Demand",
+            "best_batch": "Best Batch", "price_range": "Price",
+            "recommendation": "Action",
+        }),
+
+        # ── Live Sales Data ──
+        section("Live Sales Data — What People Are Actually Buying",
+                "Agent-tracked purchases from Weidian and 1688 over the last 30 days."),
+        explainer([
+            html.Strong("Why this matters: "),
+            "Reddit shows what people ", html.Strong("want"), ". Weidian/1688 sales show what people ",
+            html.Strong("actually buy"), ". Items trending in both = highest confidence picks.",
+        ], "amber"),
+        html.Div([
+            chart_card("Weidian Top Sellers (30 Days)",
+                       "Green = rising trend. Blue = stable. Amber = cooling.",
+                       dcc.Graph(
+                           figure=style_fig(weidian_fig),
+                           config={"displayModeBar": False},
+                           style={"height": "420px"},
+                       )),
+            chart_card("1688 Top Sellers (30 Days)",
+                       "Bulk/budget segment. Green = rising. Blue = stable.",
+                       dcc.Graph(
+                           figure=style_fig(fig_1688),
+                           config={"displayModeBar": False},
+                           style={"height": "380px"},
+                       )),
+        ], className="two-col"),
+
+        # ── Platform comparison ──
+        chart_card("Cross-Platform Top Sellers — Weidian vs 1688",
+                   "Purple = Weidian. Cyan = 1688. Items appearing on both platforms = strong signal.",
+                   dcc.Graph(
+                       figure=style_fig(plat_comp_fig),
+                       config={"displayModeBar": False},
+                       style={"height": "450px"},
+                   )),
+
+        # ── Demand Heatmap & Category Breakdown ──
+        section("Market Demand Analysis",
+                "How demand distributes across brands and product categories."),
+        html.Div([
+            chart_card("Brand × Category Demand Heatmap",
+                       "Brighter = higher demand. Use this to spot undersaturated brand-category combos.",
+                       dcc.Graph(
+                           figure=style_fig(heatmap_fig),
+                           config={"displayModeBar": False},
+                           style={"height": "350px"},
+                       )),
+            chart_card("Demand by Category",
+                       "Which product categories drive the most interest.",
+                       dcc.Graph(
+                           figure=style_fig(cat_fig),
+                           config={"displayModeBar": False},
+                       )),
+        ], className="two-col"),
+
+        # ── Trend Direction & Subreddit Reach ──
+        html.Div([
+            chart_card("Trend Direction (Weidian + 1688)",
+                       "Overall market momentum across tracked items.",
+                       dcc.Graph(
+                           figure=style_fig(trend_fig),
+                           config={"displayModeBar": False},
+                       )),
+            chart_card("Subreddit Reach & Signal Weight",
+                       "Larger communities with higher weights = strongest demand signals.",
+                       dcc.Graph(
+                           figure=style_fig(subs_fig),
+                           config={"displayModeBar": False},
+                           style={"height": "350px"},
+                       )),
+        ], className="two-col"),
+
+        # ── Reddit Trending Items Table ──
+        section("Reddit Community Trending Items",
+                "Aggregated from 9+ subreddits with 4.5M+ combined members."),
+        explainer([
+            html.Strong("Data sources: "),
+            "r/FashionReps (2.2M), r/Repsneakers (969K), r/DesignerReps (450K), "
+            "r/QualityReps (320K), r/RepBudgetSneakers (229K), r/FashionRepsBST (180K), "
+            "r/CloseToRetail, r/WeidianWarriors, r/1688Reps, and more.",
+        ], "purple"),
+        make_table(ext_trending, {
+            "brand": "Brand", "item": "Item", "category": "Category",
+            "demand": "Demand Level", "best_batch": "Best Batch",
+            "price_range": "Price Range", "subreddits": "Active Subreddits",
+            "signal": "Signal Type",
+        }, page_size=15),
+
+        # ── Subreddit Intelligence ──
+        section("Subreddit Intelligence",
+                "Community breakdown showing focus areas and top brands per subreddit."),
+        make_table(subs_df, {
+            "subreddit": "Subreddit", "members": "Members",
+            "signal_weight": "Signal Weight", "focus": "Focus Area",
+            "top_brands": "Top Brands Discussed",
+        }),
+
+        # ── Batch Quality Guide ──
+        section("Batch Quality Guide",
+                "Community-consensus best batches for the most popular sneaker models."),
+        explainer([
+            html.Strong("How to read: "),
+            "Each shoe model has a recommended 'best batch' (factory run). ",
+            html.Strong("LJR"), " = top for Jordans. ",
+            html.Strong("PK"), " = top for J4s/Yeezys. ",
+            html.Strong("M Batch"), " = best value Dunks. ",
+            html.Strong("OG"), " = best for Off-White collabs.",
+        ], "green"),
+        make_table(batch_df, {
+            "shoe": "Shoe Model", "best_batch": "Best Batch",
+            "alt_batch": "Alternative", "tier": "Tier",
+            "notes": "Community Notes",
+        }),
+
+        # ── Upcoming Releases ──
+        section("Upcoming Hype Releases — Future Demand Drivers",
+                "Retail releases that will drive replica demand in the coming months."),
+        explainer([
+            html.Strong("Strategy tip: "),
+            "Pre-stock items before their retail release date. "
+            "Demand for reps spikes 2–4 weeks before and after official drops.",
+        ], "red"),
+        make_table(releases_df, {
+            "item": "Release", "brand": "Brand",
+            "release": "Expected Date", "hype": "Hype Level",
+            "category": "Category",
+        }),
+
+        # ── QC Platform Guide ──
+        section("QC & Discovery Platforms",
+                "Tools for finding and verifying items before purchase."),
+        explainer([
+            html.Strong("doppel.fit"), " — QC photo finder and product discovery platform. "
+            "Browse thousands of QC photos from popular agents. ",
+            html.Br(),
+            html.Strong("FinderQC"), " (finderqc.com) — 5,000+ curated products with QC photos, "
+            "prices in USD. Spreadsheet updated daily, sold-out items auto-replaced. ",
+            html.Br(),
+            html.Strong("FindQC"), " (findqc.com) — QC photos and video finder for CNFans, "
+            "Kakobuy, and other shopping agents. ",
+            html.Br(),
+            html.Strong("JadeShip/RepArchive"), " — Live sales tracking across Weidian, 1688, "
+            "Taobao with agent purchase data powering the charts above.",
+        ]),
+
+    ], className="page-content")
+
+
 # ── Main layout ───────────────────────────────────────────────────────────
 
 # Load initial data (all time) for first render
@@ -546,6 +905,8 @@ app.layout = html.Div([
     dcc.Tabs(className="custom-tabs", children=[
         dcc.Tab(label="Overview", children=html.Div(id="overview-content"),
                 className="tab", selected_className="tab--selected"),
+        dcc.Tab(label="Market Intelligence", children=html.Div(id="market-intel-content"),
+                className="tab", selected_className="tab--selected"),
         dcc.Tab(label="What to Stock", children=html.Div(id="stock-content"),
                 className="tab", selected_className="tab--selected"),
         dcc.Tab(label="Customer Insights", children=html.Div(id="customers-content"),
@@ -564,7 +925,7 @@ app.layout = html.Div([
     dcc.Store(id="items-store"),
 
     html.Div([
-        html.P("ZR ItemFinder v1.1 — Data from Discord + Reddit community analysis",
+        html.P("ZR ItemFinder v1.2 — Data from Discord + Reddit + Weidian + 1688 market intelligence",
                style={"color": "var(--text-muted)", "fontSize": "0.75rem",
                        "textAlign": "center", "padding": "20px 0"}),
     ], style={"borderTop": "1px solid var(--border)", "marginTop": "32px"}),
@@ -575,6 +936,7 @@ app.layout = html.Div([
 
 @callback(
     [Output("overview-content", "children"),
+     Output("market-intel-content", "children"),
      Output("stock-content", "children"),
      Output("customers-content", "children"),
      Output("explorer-content", "children"),
@@ -598,6 +960,7 @@ def update_dashboard(days, platform):
     items_df = _df(D, "items")
     return [
         _overview(D),
+        _market_intel(D),
         _stock(D),
         _customers(D),
         _explorer(D),
