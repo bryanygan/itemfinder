@@ -44,6 +44,17 @@ WEIDIAN_TOP_SELLERS: list[dict] = [
     {"rank": 23, "item": "Monogram Wallet", "brand": "Louis Vuitton", "category": "Accessories", "units_sold": 48, "platform": "Weidian", "trend": "stable"},
     {"rank": 24, "item": "GG Belt", "brand": "Gucci", "category": "Accessories", "units_sold": 45, "platform": "Weidian", "trend": "stable"},
     {"rank": 25, "item": "Chain Bracelet Silver", "brand": "Chrome Hearts", "category": "Jewelry", "units_sold": 42, "platform": "Weidian", "trend": "rising"},
+    # Expanded footwear & clothing
+    {"rank": 26, "item": "Gel-Kayano 14", "brand": "Asics", "category": "Sneakers", "units_sold": 40, "platform": "Weidian", "trend": "rising"},
+    {"rank": 27, "item": "XT-6 Advanced", "brand": "Salomon", "category": "Sneakers", "units_sold": 38, "platform": "Weidian", "trend": "rising"},
+    {"rank": 28, "item": "Boston Clog", "brand": "Birkenstock", "category": "Footwear", "units_sold": 36, "platform": "Weidian", "trend": "rising"},
+    {"rank": 29, "item": "Ramones High DRKSHDW", "brand": "Rick Owens", "category": "Sneakers", "units_sold": 34, "platform": "Weidian", "trend": "stable"},
+    {"rank": 30, "item": "Tabi Boots / Loafers", "brand": "Maison Margiela", "category": "Footwear", "units_sold": 32, "platform": "Weidian", "trend": "rising"},
+    {"rank": 31, "item": "Hellstar Tee / Hoodie", "brand": "Hellstar", "category": "Clothing", "units_sold": 30, "platform": "Weidian", "trend": "rising"},
+    {"rank": 32, "item": "Nocta Hoodie / Pants", "brand": "Nike x Drake", "category": "Clothing", "units_sold": 28, "platform": "Weidian", "trend": "stable"},
+    {"rank": 33, "item": "Pool Slides (Logo)", "brand": "Gucci", "category": "Footwear", "units_sold": 26, "platform": "Weidian", "trend": "stable"},
+    {"rank": 34, "item": "EE Mesh Shorts", "brand": "Eric Emanuel", "category": "Clothing", "units_sold": 25, "platform": "Weidian", "trend": "stable"},
+    {"rank": 35, "item": "2002R", "brand": "New Balance", "category": "Sneakers", "units_sold": 24, "platform": "Weidian", "trend": "stable"},
 ]
 
 # 1688 top sellers (bulk/budget segment)
@@ -74,6 +85,17 @@ PLATFORM_1688_TOP: list[dict] = [
     {"rank": 23, "item": "Phone Case (Luxury Logo)", "brand": "Various", "category": "Tech Accessories", "units_sold": 55, "platform": "1688", "trend": "stable"},
     {"rank": 24, "item": "Reversible Belt", "brand": "Louis Vuitton", "category": "Accessories", "units_sold": 52, "platform": "1688", "trend": "stable"},
     {"rank": 25, "item": "Candle (Baies / Figuier)", "brand": "Diptyque", "category": "Home Decor", "units_sold": 48, "platform": "1688", "trend": "rising"},
+    # Expanded footwear & clothing
+    {"rank": 26, "item": "Polo Shirt (Logo)", "brand": "Ralph Lauren", "category": "Clothing", "units_sold": 45, "platform": "1688", "trend": "stable"},
+    {"rank": 27, "item": "Burberry Polo", "brand": "Burberry", "category": "Clothing", "units_sold": 42, "platform": "1688", "trend": "stable"},
+    {"rank": 28, "item": "Pool Slides (Medusa)", "brand": "Versace", "category": "Footwear", "units_sold": 40, "platform": "1688", "trend": "stable"},
+    {"rank": 29, "item": "Denim Tears Jeans", "brand": "Denim Tears", "category": "Clothing", "units_sold": 38, "platform": "1688", "trend": "rising"},
+    {"rank": 30, "item": "Crossbody Bag (Trio)", "brand": "Prada", "category": "Bags", "units_sold": 36, "platform": "1688", "trend": "rising"},
+    {"rank": 31, "item": "Speedy 25/30", "brand": "Louis Vuitton", "category": "Bags", "units_sold": 35, "platform": "1688", "trend": "rising"},
+    {"rank": 32, "item": "Represent Hoodie / Tee", "brand": "Represent", "category": "Clothing", "units_sold": 32, "platform": "1688", "trend": "rising"},
+    {"rank": 33, "item": "CPFM Tee / Hoodie", "brand": "Cactus Plant Flea Market", "category": "Clothing", "units_sold": 30, "platform": "1688", "trend": "stable"},
+    {"rank": 34, "item": "Palm Angels Track Pants", "brand": "Palm Angels", "category": "Clothing", "units_sold": 28, "platform": "1688", "trend": "stable"},
+    {"rank": 35, "item": "Casablanca Silk Shirt", "brand": "Casablanca", "category": "Clothing", "units_sold": 25, "platform": "1688", "trend": "rising"},
 ]
 
 # Reddit community trending items — aggregated from FashionReps (2.2M), Repsneakers
@@ -90,6 +112,24 @@ REDDIT_TRENDING: list[dict] = [
     {"brand": "Adidas", "item": "Samba OG", "category": "Sneakers", "demand": "high", "best_batch": "H12", "price_range": "$20–35", "subreddits": "WeidianWarriors, RepBudgetSneakers", "signal": "ownership"},
     {"brand": "New Balance", "item": "9060", "category": "Sneakers", "demand": "high", "best_batch": "—", "price_range": "$25–40", "subreddits": "FashionReps, WeidianWarriors", "signal": "satisfaction"},
     {"brand": "Maison Margiela", "item": "GATs", "category": "Sneakers", "demand": "high", "best_batch": "—", "price_range": "$25–45", "subreddits": "QualityReps, WeidianWarriors", "signal": "ownership"},
+    # Sneakers — expanded models
+    {"brand": "Asics", "item": "Gel-Kayano 14 (Thom Browne collab)", "category": "Sneakers", "demand": "high", "best_batch": "—", "price_range": "$20–40", "subreddits": "FashionReps, WeidianWarriors", "signal": "request"},
+    {"brand": "Salomon", "item": "XT-6 Advanced", "category": "Sneakers", "demand": "high", "best_batch": "—", "price_range": "$25–45", "subreddits": "QualityReps, FashionReps", "signal": "request"},
+    {"brand": "On Running", "item": "Cloudtilt / Cloudmonster", "category": "Sneakers", "demand": "high", "best_batch": "—", "price_range": "$25–45", "subreddits": "WeidianWarriors, FashionReps", "signal": "ownership"},
+    {"brand": "New Balance", "item": "2002R", "category": "Sneakers", "demand": "moderate", "best_batch": "—", "price_range": "$25–40", "subreddits": "FashionReps, RepBudgetSneakers", "signal": "request"},
+    {"brand": "Rick Owens", "item": "Ramones High DRKSHDW", "category": "Sneakers", "demand": "high", "best_batch": "—", "price_range": "$35–65", "subreddits": "QualityReps", "signal": "request"},
+    {"brand": "Rick Owens", "item": "Geobasket / Abstract Low", "category": "Sneakers", "demand": "moderate", "best_batch": "—", "price_range": "$40–70", "subreddits": "QualityReps", "signal": "request"},
+    {"brand": "Jordan", "item": "AJ1 Royal (Oct 2026 release)", "category": "Sneakers", "demand": "high", "best_batch": "LJR", "price_range": "$30–50", "subreddits": "Repsneakers, FashionReps", "signal": "request"},
+    {"brand": "Jordan", "item": "AJ11 Space Jam (Dec 2026 30th)", "category": "Sneakers", "demand": "very_high", "best_batch": "LJR", "price_range": "$40–60", "subreddits": "Repsneakers, FashionReps", "signal": "request"},
+    {"brand": "Jordan", "item": "AJ3 True Blue (Jul 2026)", "category": "Sneakers", "demand": "high", "best_batch": "LJR", "price_range": "$35–50", "subreddits": "Repsneakers", "signal": "request"},
+    {"brand": "Jordan", "item": "Union x Fragment x AJ1 (Feb 2026)", "category": "Sneakers", "demand": "very_high", "best_batch": "LJR / OG", "price_range": "$40–60", "subreddits": "Repsneakers, FashionReps", "signal": "request"},
+    {"brand": "Nike", "item": "Off-White AJ1 'Alaska' (Virgil)", "category": "Sneakers", "demand": "very_high", "best_batch": "OG / LJR", "price_range": "$40–60", "subreddits": "Repsneakers, FashionReps", "signal": "request"},
+    # Footwear — non-sneaker
+    {"brand": "Birkenstock", "item": "Boston Clog (Suede)", "category": "Footwear", "demand": "high", "best_batch": "—", "price_range": "$15–30", "subreddits": "FashionReps, WeidianWarriors", "signal": "request"},
+    {"brand": "Maison Margiela", "item": "Tabi Boots / Loafers", "category": "Footwear", "demand": "high", "best_batch": "—", "price_range": "$30–60", "subreddits": "QualityReps", "signal": "request"},
+    {"brand": "Gucci", "item": "Pool Slides / Rubber Slides", "category": "Footwear", "demand": "moderate", "best_batch": "—", "price_range": "$8–18", "subreddits": "FashionReps, DHgate", "signal": "request"},
+    {"brand": "Versace", "item": "Medusa Pool Slides", "category": "Footwear", "demand": "moderate", "best_batch": "—", "price_range": "$8–18", "subreddits": "FashionReps, DHgate", "signal": "request"},
+    {"brand": "Bottega Veneta", "item": "Puddle Boots / Lug Boots", "category": "Footwear", "demand": "moderate", "best_batch": "—", "price_range": "$30–55", "subreddits": "QualityReps, DesignerReps", "signal": "request"},
     # Clothing — streetwear dominates
     {"brand": "Fear of God", "item": "Essentials Hoodie / Sweats", "category": "Clothing", "demand": "very_high", "best_batch": "—", "price_range": "$15–30", "subreddits": "FashionReps, 1688Reps", "signal": "request"},
     {"brand": "Gallery Dept", "item": "Tees / Jeans / Hoodies", "category": "Clothing", "demand": "high", "best_batch": "—", "price_range": "$15–40", "subreddits": "QualityReps, FashionReps", "signal": "request"},
@@ -101,6 +141,31 @@ REDDIT_TRENDING: list[dict] = [
     {"brand": "Stussy", "item": "Tees / Hoodies (8 Ball)", "category": "Clothing", "demand": "high", "best_batch": "—", "price_range": "$10–20", "subreddits": "FashionReps, RepBudgetSneakers", "signal": "satisfaction"},
     {"brand": "Amiri", "item": "Jeans / Tees", "category": "Clothing", "demand": "high", "best_batch": "—", "price_range": "$20–45", "subreddits": "QualityReps, DesignerReps", "signal": "request"},
     {"brand": "Off-White", "item": "Tees / Hoodies / Belts", "category": "Clothing", "demand": "moderate", "best_batch": "—", "price_range": "$10–30", "subreddits": "FashionReps", "signal": "request"},
+    # Clothing — expanded brands
+    {"brand": "Hellstar", "item": "Graphic Tees / Hoodies", "category": "Clothing", "demand": "high", "best_batch": "—", "price_range": "$10–25", "subreddits": "FashionReps", "signal": "request"},
+    {"brand": "Nike x Drake", "item": "Nocta Hoodie / Pants / Puffer", "category": "Clothing", "demand": "high", "best_batch": "—", "price_range": "$15–40", "subreddits": "FashionReps", "signal": "request"},
+    {"brand": "Eric Emanuel", "item": "EE Mesh Shorts", "category": "Clothing", "demand": "high", "best_batch": "—", "price_range": "$8–15", "subreddits": "FashionReps", "signal": "request"},
+    {"brand": "Denim Tears", "item": "Cotton Wreath Jeans / Shorts", "category": "Clothing", "demand": "high", "best_batch": "—", "price_range": "$15–35", "subreddits": "FashionReps", "signal": "request"},
+    {"brand": "Represent", "item": "Hoodie / Tee / Denim", "category": "Clothing", "demand": "high", "best_batch": "—", "price_range": "$12–30", "subreddits": "FashionReps, QualityReps", "signal": "request"},
+    {"brand": "Rhude", "item": "Shorts / Track Pants / Tees", "category": "Clothing", "demand": "moderate", "best_batch": "—", "price_range": "$12–30", "subreddits": "FashionReps, QualityReps", "signal": "request"},
+    {"brand": "Palm Angels", "item": "Track Pants / Tees / Jackets", "category": "Clothing", "demand": "moderate", "best_batch": "—", "price_range": "$10–30", "subreddits": "FashionReps", "signal": "request"},
+    {"brand": "Casablanca", "item": "Silk Shirt / Knit Polo", "category": "Clothing", "demand": "high", "best_batch": "—", "price_range": "$15–35", "subreddits": "QualityReps, DesignerReps", "signal": "request"},
+    {"brand": "Cactus Plant Flea Market", "item": "CPFM Tee / Hoodie", "category": "Clothing", "demand": "moderate", "best_batch": "—", "price_range": "$12–25", "subreddits": "FashionReps", "signal": "request"},
+    {"brand": "Human Made", "item": "Graphic Tees / Varsity Jacket", "category": "Clothing", "demand": "moderate", "best_batch": "—", "price_range": "$12–30", "subreddits": "FashionReps", "signal": "request"},
+    {"brand": "BAPE", "item": "Shark Hoodie / Camo Tees", "category": "Clothing", "demand": "moderate", "best_batch": "—", "price_range": "$15–35", "subreddits": "FashionReps", "signal": "request"},
+    {"brand": "Kenzo", "item": "Tiger Tees / Sweatshirts", "category": "Clothing", "demand": "moderate", "best_batch": "—", "price_range": "$10–25", "subreddits": "FashionReps", "signal": "request"},
+    {"brand": "Ralph Lauren", "item": "Polo Shirt / Oxford / Knits", "category": "Clothing", "demand": "moderate", "best_batch": "—", "price_range": "$8–20", "subreddits": "FashionReps, 1688Reps", "signal": "ownership"},
+    {"brand": "Burberry", "item": "Polo / Check Shirt / Scarf", "category": "Clothing", "demand": "moderate", "best_batch": "—", "price_range": "$12–30", "subreddits": "DesignerReps, FashionReps", "signal": "request"},
+    {"brand": "Miu Miu", "item": "Cropped Tops / Skirts / Knits", "category": "Clothing", "demand": "rising", "best_batch": "—", "price_range": "$15–40", "subreddits": "DesignerReps, RepLadies", "signal": "request"},
+    {"brand": "Prada", "item": "Re-Nylon Jacket / Triangle Tee", "category": "Clothing", "demand": "high", "best_batch": "—", "price_range": "$15–45", "subreddits": "DesignerReps, QualityReps", "signal": "request"},
+    {"brand": "Gucci", "item": "Logo Tees / Track Jacket", "category": "Clothing", "demand": "moderate", "best_batch": "—", "price_range": "$12–30", "subreddits": "DesignerReps, FashionReps", "signal": "request"},
+    # Bags — expanded
+    {"brand": "Prada", "item": "Re-Nylon Crossbody / Sling", "category": "Bags", "demand": "high", "best_batch": "—", "price_range": "$30–65", "subreddits": "DesignerReps, RepLadies", "signal": "request"},
+    {"brand": "Louis Vuitton", "item": "Speedy 25 / 30 (renaissance)", "category": "Bags", "demand": "high", "best_batch": "—", "price_range": "$50–100", "subreddits": "DesignerReps, RepLadies", "signal": "request"},
+    {"brand": "Goyard", "item": "Saint Louis Tote", "category": "Bags", "demand": "high", "best_batch": "—", "price_range": "$30–60", "subreddits": "DesignerReps, FashionReps", "signal": "request"},
+    # Headwear
+    {"brand": "Various", "item": "Fitted Caps / Snapbacks (Designer)", "category": "Accessories", "demand": "moderate", "best_batch": "—", "price_range": "$5–15", "subreddits": "FashionReps, DHgate", "signal": "request"},
+    {"brand": "Various", "item": "Beanies (Logo / Luxury)", "category": "Accessories", "demand": "moderate", "best_batch": "—", "price_range": "$5–12", "subreddits": "FashionReps", "signal": "request"},
     # Outerwear — seasonal prep
     {"brand": "Moncler", "item": "Maya Jacket / Vest", "category": "Outerwear", "demand": "high", "best_batch": "—", "price_range": "$50–90", "subreddits": "FashionReps, DesignerReps", "signal": "request"},
     {"brand": "Stone Island", "item": "Sweatshirts / Cargos", "category": "Outerwear", "demand": "high", "best_batch": "TopStoney", "price_range": "$20–40", "subreddits": "FashionReps", "signal": "ownership"},
@@ -207,6 +272,17 @@ UPCOMING_RELEASES: list[dict] = [
     {"item": "Van Cleef Holiday Alhambra", "brand": "Van Cleef & Arpels", "release": "Fall 2026", "hype": "high", "category": "Jewelry"},
     {"item": "Hermès Avalon (new colorways)", "brand": "Hermès", "release": "Spring 2026", "hype": "moderate", "category": "Home Decor"},
     {"item": "Baccarat Rouge 540 (Extrait restock)", "brand": "MFK", "release": "2026", "hype": "high", "category": "Fragrance"},
+    # Jordan retro releases
+    {"item": "Air Jordan 11 'Space Jam' (30th Anniversary)", "brand": "Jordan", "release": "Dec 12 2026", "hype": "very_high", "category": "Sneakers"},
+    {"item": "Air Jordan 3 'True Blue'", "brand": "Jordan", "release": "Jul 18 2026", "hype": "high", "category": "Sneakers"},
+    {"item": "Air Jordan 1 'Royal' (Retro High OG)", "brand": "Jordan", "release": "Oct 10 2026", "hype": "high", "category": "Sneakers"},
+    {"item": "Union x Fragment x Air Jordan 1", "brand": "Jordan / Union / Fragment", "release": "Feb 27 2026", "hype": "very_high", "category": "Sneakers"},
+    {"item": "Off-White x AJ1 'Alaska' (Virgil branding)", "brand": "Jordan / Virgil Abloh", "release": "2026", "hype": "very_high", "category": "Sneakers"},
+    {"item": "Travis Scott x AJ1 Low (May 22, pink duo)", "brand": "Jordan / Travis Scott", "release": "May 22 2026", "hype": "very_high", "category": "Sneakers"},
+    # Gorpcore / lifestyle
+    {"item": "Thom Browne x Asics Gel-Kayano 14 (3-pack)", "brand": "Asics / Thom Browne", "release": "Spring 2026", "hype": "high", "category": "Sneakers"},
+    {"item": "Birkenstock x ETRO Boston Clog", "brand": "Birkenstock / ETRO", "release": "Spring 2026", "hype": "moderate", "category": "Footwear"},
+    {"item": "Miu Miu Bubble Sole Sneaker (Fall revival)", "brand": "Miu Miu", "release": "Fall 2026", "hype": "high", "category": "Sneakers"},
 ]
 
 # Subreddit community metrics
