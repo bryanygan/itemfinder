@@ -21,6 +21,7 @@ from src.analytics.market_intel import (
     get_external_trending,
     get_subreddit_stats,
     get_upcoming_releases,
+    get_watch_factory_guide,
     get_weidian_sales,
     platform_comparison,
     purchase_recommendations,
@@ -525,6 +526,7 @@ def _market_intel(D):
     weidian_df = pd.DataFrame(get_weidian_sales())
     sales_1688_df = pd.DataFrame(get_1688_sales())
     batch_df = pd.DataFrame(get_batch_guide())
+    watch_df = pd.DataFrame(get_watch_factory_guide())
     releases_df = pd.DataFrame(get_upcoming_releases())
     subs_df = pd.DataFrame(get_subreddit_stats())
     cat_df = pd.DataFrame(mi_category_breakdown())
@@ -547,6 +549,7 @@ def _market_intel(D):
     total_weidian_sold = weidian_df["units_sold"].sum() if not weidian_df.empty else 0
     total_1688_sold = sales_1688_df["units_sold"].sum() if not sales_1688_df.empty else 0
     total_subs_reach = subs_df["members"].sum() if not subs_df.empty else 0
+    n_categories = ext_trending["category"].nunique() if not ext_trending.empty else 0
 
     # ── Demand heatmap ──
     if heatmap_raw:
@@ -672,16 +675,19 @@ def _market_intel(D):
         explainer([
             html.Strong("Market Intelligence — External Trend Analysis. "),
             "This page combines data from ",
-            html.Strong("Reddit communities"), " (FashionReps, Repsneakers, QualityReps, etc.), ",
+            html.Strong("15+ Reddit communities"), " (FashionReps, Repsneakers, RepTime, DesignerReps, RepLadies, etc.), ",
             html.Strong("Weidian/1688 live sales"), " (JadeShip/RepArchive agent tracking), ",
             html.Strong("QC platforms"), " (doppel.fit, FinderQC, FindQC), and ",
-            html.Strong("upcoming hype releases"), " to identify the best items to purchase right now. ",
+            html.Strong("upcoming releases"), " to identify the best items to purchase right now. ",
+            "Covers ", html.Strong("sneakers, clothing, bags, jewelry, watches, accessories, "
+            "eyewear, home decor, fragrances, and tech accessories"), ". ",
             "Data reflects April 2026 market conditions.",
         ]),
 
         # KPI Row
         html.Div([
             kpi(total_items_tracked, "Items Tracked", C_CYAN),
+            kpi(n_categories, "Categories", C_BLUE),
             kpi(very_high, "Very High Demand", C_RED),
             kpi(f"{total_weidian_sold:,}", "Weidian Sales (30d)", C_PURPLE),
             kpi(f"{total_1688_sold:,}", "1688 Sales (30d)", C_AMBER),
@@ -728,14 +734,14 @@ def _market_intel(D):
                        dcc.Graph(
                            figure=style_fig(weidian_fig),
                            config={"displayModeBar": False},
-                           style={"height": "420px"},
+                           style={"height": "580px"},
                        )),
             chart_card("1688 Top Sellers (30 Days)",
                        "Bulk/budget segment. Green = rising. Blue = stable.",
                        dcc.Graph(
                            figure=style_fig(fig_1688),
                            config={"displayModeBar": False},
-                           style={"height": "380px"},
+                           style={"height": "580px"},
                        )),
         ], className="two-col"),
 
@@ -745,7 +751,7 @@ def _market_intel(D):
                    dcc.Graph(
                        figure=style_fig(plat_comp_fig),
                        config={"displayModeBar": False},
-                       style={"height": "450px"},
+                       style={"height": "520px"},
                    )),
 
         # ── Demand Heatmap & Category Breakdown ──
@@ -757,7 +763,7 @@ def _market_intel(D):
                        dcc.Graph(
                            figure=style_fig(heatmap_fig),
                            config={"displayModeBar": False},
-                           style={"height": "350px"},
+                           style={"height": "450px"},
                        )),
             chart_card("Demand by Category",
                        "Which product categories drive the most interest.",
@@ -780,7 +786,7 @@ def _market_intel(D):
                        dcc.Graph(
                            figure=style_fig(subs_fig),
                            config={"displayModeBar": False},
-                           style={"height": "350px"},
+                           style={"height": "450px"},
                        )),
         ], className="two-col"),
 
@@ -789,9 +795,11 @@ def _market_intel(D):
                 "Aggregated from 9+ subreddits with 4.5M+ combined members."),
         explainer([
             html.Strong("Data sources: "),
-            "r/FashionReps (2.2M), r/Repsneakers (969K), r/DesignerReps (450K), "
-            "r/QualityReps (320K), r/RepBudgetSneakers (229K), r/FashionRepsBST (180K), "
-            "r/CloseToRetail, r/WeidianWarriors, r/1688Reps, and more.",
+            "r/FashionReps (2.2M), r/Repsneakers (969K), r/RepTime (600K), "
+            "r/DesignerReps (450K), r/DHgate (350K), r/QualityReps (320K), "
+            "r/RepLadies (250K), r/RepBudgetSneakers (229K), r/FashionRepsBST (180K), "
+            "r/ChinaTime (180K), r/CloseToRetail, r/WeidianWarriors, r/1688Reps, "
+            "r/DecorReps, and more.",
         ], "purple"),
         make_table(ext_trending, {
             "brand": "Brand", "item": "Item", "category": "Category",
@@ -826,9 +834,26 @@ def _market_intel(D):
             "notes": "Community Notes",
         }),
 
+        # ── Watch Factory Guide ──
+        section("Watch Factory Guide",
+                "Community-consensus best factories for the most popular watch models."),
+        explainer([
+            html.Strong("How to read: "),
+            "Each watch model has a recommended 'best factory'. ",
+            html.Strong("Clean / VS"), " = top for Rolex. ",
+            html.Strong("ZF"), " = top for AP Royal Oak & Omega Speedmaster. ",
+            html.Strong("VS"), " = dominates Omega Seamaster. ",
+            html.Strong("GF / BV"), " = best for Cartier Santos.",
+        ], "amber"),
+        make_table(watch_df, {
+            "watch": "Watch Model", "best_factory": "Best Factory",
+            "alt_factory": "Alternative", "tier": "Tier",
+            "notes": "Community Notes",
+        }),
+
         # ── Upcoming Releases ──
-        section("Upcoming Hype Releases — Future Demand Drivers",
-                "Retail releases that will drive replica demand in the coming months."),
+        section("Upcoming Releases — Future Demand Drivers",
+                "Retail releases across sneakers, watches, jewelry, and more that drive demand."),
         explainer([
             html.Strong("Strategy tip: "),
             "Pre-stock items before their retail release date. "

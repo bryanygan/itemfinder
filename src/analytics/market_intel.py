@@ -33,6 +33,17 @@ WEIDIAN_TOP_SELLERS: list[dict] = [
     {"rank": 13, "item": "Track Runner", "brand": "Balenciaga", "category": "Sneakers", "units_sold": 88, "platform": "Weidian", "trend": "cooling"},
     {"rank": 14, "item": "B23 High Top", "brand": "Dior", "category": "Sneakers", "units_sold": 82, "platform": "Weidian", "trend": "rising"},
     {"rank": 15, "item": "Fleece-Lined Pants", "brand": "Various", "category": "Clothing", "units_sold": 78, "platform": "Weidian", "trend": "cooling"},
+    # Accessories, jewelry, watches
+    {"rank": 16, "item": "Cross Necklace Silver", "brand": "Chrome Hearts", "category": "Jewelry", "units_sold": 74, "platform": "Weidian", "trend": "rising"},
+    {"rank": 17, "item": "Saturn Orb Pearl Necklace", "brand": "Vivienne Westwood", "category": "Jewelry", "units_sold": 68, "platform": "Weidian", "trend": "rising"},
+    {"rank": 18, "item": "Submariner", "brand": "Rolex", "category": "Watches", "units_sold": 65, "platform": "Weidian", "trend": "stable"},
+    {"rank": 19, "item": "Cemetery Ring", "brand": "Chrome Hearts", "category": "Jewelry", "units_sold": 62, "platform": "Weidian", "trend": "rising"},
+    {"rank": 20, "item": "Cardholder", "brand": "Goyard", "category": "Accessories", "units_sold": 58, "platform": "Weidian", "trend": "stable"},
+    {"rank": 21, "item": "Oversized Sunglasses", "brand": "Dior", "category": "Eyewear", "units_sold": 55, "platform": "Weidian", "trend": "rising"},
+    {"rank": 22, "item": "Santos", "brand": "Cartier", "category": "Watches", "units_sold": 52, "platform": "Weidian", "trend": "rising"},
+    {"rank": 23, "item": "Monogram Wallet", "brand": "Louis Vuitton", "category": "Accessories", "units_sold": 48, "platform": "Weidian", "trend": "stable"},
+    {"rank": 24, "item": "GG Belt", "brand": "Gucci", "category": "Accessories", "units_sold": 45, "platform": "Weidian", "trend": "stable"},
+    {"rank": 25, "item": "Chain Bracelet Silver", "brand": "Chrome Hearts", "category": "Jewelry", "units_sold": 42, "platform": "Weidian", "trend": "rising"},
 ]
 
 # 1688 top sellers (bulk/budget segment)
@@ -47,6 +58,22 @@ PLATFORM_1688_TOP: list[dict] = [
     {"rank": 8, "item": "Hoodie Logo", "brand": "Chrome Hearts", "category": "Clothing", "units_sold": 148, "platform": "1688", "trend": "rising"},
     {"rank": 9, "item": "Cargo Pants", "brand": "Stone Island", "category": "Clothing", "units_sold": 135, "platform": "1688", "trend": "stable"},
     {"rank": 10, "item": "Cassette Bag", "brand": "Bottega Veneta", "category": "Bags", "units_sold": 128, "platform": "1688", "trend": "rising"},
+    # Accessories, jewelry, home, fragrances
+    {"rank": 11, "item": "Avalon Throw Blanket", "brand": "Hermès", "category": "Home Decor", "units_sold": 115, "platform": "1688", "trend": "rising"},
+    {"rank": 12, "item": "Medusa Rug", "brand": "Versace", "category": "Home Decor", "units_sold": 108, "platform": "1688", "trend": "stable"},
+    {"rank": 13, "item": "Monogram Silk Scarf", "brand": "Louis Vuitton", "category": "Accessories", "units_sold": 102, "platform": "1688", "trend": "stable"},
+    {"rank": 14, "item": "Cross Pendant Necklace", "brand": "Chrome Hearts", "category": "Jewelry", "units_sold": 98, "platform": "1688", "trend": "rising"},
+    {"rank": 15, "item": "Cardholder Monogram", "brand": "Goyard", "category": "Accessories", "units_sold": 92, "platform": "1688", "trend": "stable"},
+    {"rank": 16, "item": "Change Tray / Vide-Poche", "brand": "Hermès", "category": "Home Decor", "units_sold": 88, "platform": "1688", "trend": "rising"},
+    {"rank": 17, "item": "Daytona Chronograph", "brand": "Rolex", "category": "Watches", "units_sold": 82, "platform": "1688", "trend": "stable"},
+    {"rank": 18, "item": "Saturn Pearl Necklace", "brand": "Vivienne Westwood", "category": "Jewelry", "units_sold": 78, "platform": "1688", "trend": "rising"},
+    {"rank": 19, "item": "Cushion Pillows (Logo)", "brand": "Fendi", "category": "Home Decor", "units_sold": 72, "platform": "1688", "trend": "stable"},
+    {"rank": 20, "item": "Royal Oak 15500", "brand": "Audemars Piguet", "category": "Watches", "units_sold": 68, "platform": "1688", "trend": "stable"},
+    {"rank": 21, "item": "AirPods Max Case", "brand": "Various", "category": "Tech Accessories", "units_sold": 65, "platform": "1688", "trend": "rising"},
+    {"rank": 22, "item": "Sauvage EDP (Inspired)", "brand": "Dior", "category": "Fragrance", "units_sold": 58, "platform": "1688", "trend": "rising"},
+    {"rank": 23, "item": "Phone Case (Luxury Logo)", "brand": "Various", "category": "Tech Accessories", "units_sold": 55, "platform": "1688", "trend": "stable"},
+    {"rank": 24, "item": "Reversible Belt", "brand": "Louis Vuitton", "category": "Accessories", "units_sold": 52, "platform": "1688", "trend": "stable"},
+    {"rank": 25, "item": "Candle (Baies / Figuier)", "brand": "Diptyque", "category": "Home Decor", "units_sold": 48, "platform": "1688", "trend": "rising"},
 ]
 
 # Reddit community trending items — aggregated from FashionReps (2.2M), Repsneakers
@@ -86,6 +113,53 @@ REDDIT_TRENDING: list[dict] = [
     {"brand": "Bottega Veneta", "item": "Cassette Bag", "category": "Bags", "demand": "high", "best_batch": "—", "price_range": "$50–100", "subreddits": "DesignerReps, LuxuryReps", "signal": "request"},
     {"brand": "Chanel", "item": "Classic Flap", "category": "Bags", "demand": "very_high", "best_batch": "—", "price_range": "$60–120", "subreddits": "DesignerReps, LuxuryReps", "signal": "request"},
     {"brand": "Prada / Miu Miu", "item": "Leather Goods", "category": "Bags", "demand": "rising", "best_batch": "—", "price_range": "$40–90", "subreddits": "DesignerReps", "signal": "request"},
+    # Jewelry — massive growth category
+    {"brand": "Chrome Hearts", "item": "Cross Necklace / Pendant", "category": "Jewelry", "demand": "very_high", "best_batch": "—", "price_range": "$3–15", "subreddits": "FashionReps, QualityReps, DesignerReps", "signal": "request"},
+    {"brand": "Chrome Hearts", "item": "Cemetery Ring / Floral Ring", "category": "Jewelry", "demand": "very_high", "best_batch": "—", "price_range": "$2–8", "subreddits": "FashionReps, QualityReps", "signal": "request"},
+    {"brand": "Chrome Hearts", "item": "Chain Bracelet / Bangle", "category": "Jewelry", "demand": "high", "best_batch": "—", "price_range": "$5–15", "subreddits": "FashionReps, QualityReps", "signal": "request"},
+    {"brand": "Vivienne Westwood", "item": "Saturn Orb Pearl Necklace", "category": "Jewelry", "demand": "very_high", "best_batch": "—", "price_range": "$3–10", "subreddits": "FashionReps, DesignerReps", "signal": "request"},
+    {"brand": "Vivienne Westwood", "item": "Orb Earrings / Ring", "category": "Jewelry", "demand": "high", "best_batch": "—", "price_range": "$2–8", "subreddits": "FashionReps, DesignerReps", "signal": "request"},
+    {"brand": "Van Cleef & Arpels", "item": "Alhambra Necklace / Bracelet", "category": "Jewelry", "demand": "high", "best_batch": "—", "price_range": "$8–25", "subreddits": "DesignerReps, LuxuryReps", "signal": "request"},
+    {"brand": "Cartier", "item": "Love Bracelet / Ring", "category": "Jewelry", "demand": "high", "best_batch": "—", "price_range": "$10–30", "subreddits": "DesignerReps, LuxuryReps", "signal": "request"},
+    {"brand": "Tiffany & Co.", "item": "Heart Tag / Chain Necklace", "category": "Jewelry", "demand": "moderate", "best_batch": "—", "price_range": "$5–15", "subreddits": "DesignerReps", "signal": "request"},
+    # Watches — RepTime/ChinaTime communities
+    {"brand": "Rolex", "item": "Submariner (Clean/VS Factory)", "category": "Watches", "demand": "very_high", "best_batch": "Clean / VS", "price_range": "$250–500", "subreddits": "RepTime, ChinaTime", "signal": "request"},
+    {"brand": "Rolex", "item": "Daytona Chronograph", "category": "Watches", "demand": "very_high", "best_batch": "Clean / Noob", "price_range": "$300–550", "subreddits": "RepTime", "signal": "request"},
+    {"brand": "Rolex", "item": "GMT-Master II (Pepsi/Batman)", "category": "Watches", "demand": "high", "best_batch": "Clean", "price_range": "$280–480", "subreddits": "RepTime", "signal": "request"},
+    {"brand": "Audemars Piguet", "item": "Royal Oak 15500", "category": "Watches", "demand": "high", "best_batch": "ZF", "price_range": "$350–550", "subreddits": "RepTime", "signal": "request"},
+    {"brand": "Omega", "item": "Seamaster Diver 300M", "category": "Watches", "demand": "high", "best_batch": "VS", "price_range": "$200–400", "subreddits": "RepTime", "signal": "request"},
+    {"brand": "Cartier", "item": "Santos Medium / Large", "category": "Watches", "demand": "high", "best_batch": "GF / BV", "price_range": "$200–400", "subreddits": "RepTime", "signal": "request"},
+    {"brand": "Patek Philippe", "item": "Nautilus 5711", "category": "Watches", "demand": "high", "best_batch": "PPF / 3KF", "price_range": "$350–600", "subreddits": "RepTime", "signal": "request"},
+    # Accessories — small leather goods, belts, wallets
+    {"brand": "Goyard", "item": "Saint Sulpice Cardholder", "category": "Accessories", "demand": "very_high", "best_batch": "—", "price_range": "$8–20", "subreddits": "FashionReps, DesignerReps", "signal": "request"},
+    {"brand": "Louis Vuitton", "item": "Multiple Wallet / Slender", "category": "Accessories", "demand": "high", "best_batch": "—", "price_range": "$15–40", "subreddits": "DesignerReps, FashionReps", "signal": "request"},
+    {"brand": "Gucci", "item": "GG Marmont Belt", "category": "Accessories", "demand": "high", "best_batch": "—", "price_range": "$10–30", "subreddits": "DesignerReps, FashionReps", "signal": "request"},
+    {"brand": "Hermès", "item": "H Belt (Constance Buckle)", "category": "Accessories", "demand": "high", "best_batch": "—", "price_range": "$15–40", "subreddits": "DesignerReps, LuxuryReps", "signal": "request"},
+    {"brand": "Louis Vuitton", "item": "Monogram / Damier Belt", "category": "Accessories", "demand": "high", "best_batch": "—", "price_range": "$12–30", "subreddits": "FashionReps, DesignerReps", "signal": "request"},
+    # Eyewear / Sunglasses
+    {"brand": "Dior", "item": "DiorClub / Shield Sunglasses", "category": "Eyewear", "demand": "high", "best_batch": "—", "price_range": "$10–25", "subreddits": "DesignerReps, FashionReps", "signal": "request"},
+    {"brand": "Cartier", "item": "C Décor / Panthère Glasses", "category": "Eyewear", "demand": "high", "best_batch": "—", "price_range": "$15–35", "subreddits": "DesignerReps", "signal": "request"},
+    {"brand": "Gentle Monster", "item": "Her / Solo / Frida", "category": "Eyewear", "demand": "high", "best_batch": "—", "price_range": "$8–20", "subreddits": "FashionReps, DesignerReps", "signal": "request"},
+    {"brand": "Chrome Hearts", "item": "Optical Frames", "category": "Eyewear", "demand": "moderate", "best_batch": "—", "price_range": "$12–30", "subreddits": "QualityReps", "signal": "request"},
+    # Scarves & Silk
+    {"brand": "Hermès", "item": "Silk Carré Scarf (90cm)", "category": "Accessories", "demand": "high", "best_batch": "—", "price_range": "$10–30", "subreddits": "DesignerReps, LuxuryReps", "signal": "request"},
+    {"brand": "Louis Vuitton", "item": "Monogram Shawl / Scarf", "category": "Accessories", "demand": "moderate", "best_batch": "—", "price_range": "$10–25", "subreddits": "DesignerReps", "signal": "request"},
+    # Home Decor — growing category
+    {"brand": "Hermès", "item": "Avalon Throw Blanket", "category": "Home Decor", "demand": "high", "best_batch": "—", "price_range": "$25–60", "subreddits": "DesignerReps, DHgate", "signal": "request"},
+    {"brand": "Hermès", "item": "Change Tray / Ashtray", "category": "Home Decor", "demand": "high", "best_batch": "—", "price_range": "$8–20", "subreddits": "DesignerReps, DHgate", "signal": "request"},
+    {"brand": "Versace", "item": "Medusa Rug / Carpet", "category": "Home Decor", "demand": "moderate", "best_batch": "—", "price_range": "$30–80", "subreddits": "DHgate, 1688Reps", "signal": "request"},
+    {"brand": "Fendi", "item": "Logo Cushion Pillows", "category": "Home Decor", "demand": "moderate", "best_batch": "—", "price_range": "$15–35", "subreddits": "DesignerReps, DHgate", "signal": "request"},
+    {"brand": "Diptyque", "item": "Baies / Figuier Candle", "category": "Home Decor", "demand": "moderate", "best_batch": "—", "price_range": "$5–15", "subreddits": "FashionReps, DesignerReps", "signal": "request"},
+    {"brand": "Louis Vuitton", "item": "Monogram Blanket / Pillow", "category": "Home Decor", "demand": "moderate", "best_batch": "—", "price_range": "$20–50", "subreddits": "DesignerReps, DHgate", "signal": "request"},
+    # Fragrance (dupes/inspired)
+    {"brand": "Dior", "item": "Sauvage EDP (Inspired)", "category": "Fragrance", "demand": "high", "best_batch": "—", "price_range": "$5–15", "subreddits": "FashionReps", "signal": "request"},
+    {"brand": "Tom Ford", "item": "Lost Cherry / Tobacco Vanille", "category": "Fragrance", "demand": "high", "best_batch": "—", "price_range": "$8–20", "subreddits": "FashionReps", "signal": "request"},
+    {"brand": "Creed", "item": "Aventus (Inspired)", "category": "Fragrance", "demand": "high", "best_batch": "—", "price_range": "$5–15", "subreddits": "FashionReps", "signal": "request"},
+    {"brand": "Maison Francis Kurkdjian", "item": "Baccarat Rouge 540 (Inspired)", "category": "Fragrance", "demand": "very_high", "best_batch": "—", "price_range": "$5–20", "subreddits": "FashionReps", "signal": "request"},
+    # Tech Accessories
+    {"brand": "Various", "item": "AirPods Max / Pro Case (Designer)", "category": "Tech Accessories", "demand": "moderate", "best_batch": "—", "price_range": "$3–10", "subreddits": "FashionReps, DHgate", "signal": "request"},
+    {"brand": "Various", "item": "Luxury Logo Phone Case", "category": "Tech Accessories", "demand": "moderate", "best_batch": "—", "price_range": "$3–10", "subreddits": "FashionReps, DHgate", "signal": "request"},
+    {"brand": "Goyard", "item": "Laptop Sleeve / iPad Case", "category": "Tech Accessories", "demand": "moderate", "best_batch": "—", "price_range": "$15–30", "subreddits": "FashionReps, DesignerReps", "signal": "request"},
 ]
 
 # Batch quality guide — community consensus
@@ -103,6 +177,19 @@ BATCH_GUIDE: list[dict] = [
     {"shoe": "Adidas Samba", "best_batch": "H12", "alt_batch": "—", "tier": "Mid", "notes": "Budget-friendly; good for the price point"},
 ]
 
+WATCH_FACTORY_GUIDE: list[dict] = [
+    {"watch": "Rolex Submariner", "best_factory": "Clean / VS", "alt_factory": "ZF", "tier": "Top", "notes": "Clean best overall; VS strong value alternative"},
+    {"watch": "Rolex Daytona", "best_factory": "Clean / Noob", "alt_factory": "BTF", "tier": "Top", "notes": "Clean for ceramic; Noob legacy for steel"},
+    {"watch": "Rolex GMT-Master II", "best_factory": "Clean", "alt_factory": "VS", "tier": "Top", "notes": "Best bezel color accuracy and movement"},
+    {"watch": "Rolex Datejust 41", "best_factory": "Clean / VS", "alt_factory": "ARF", "tier": "Top", "notes": "ARF has best bracelet; Clean best dial"},
+    {"watch": "AP Royal Oak 15500", "best_factory": "ZF", "alt_factory": "APS", "tier": "Top", "notes": "ZF best overall; APS good on tapisserie dial"},
+    {"watch": "Omega Seamaster 300M", "best_factory": "VS", "alt_factory": "—", "tier": "Top", "notes": "VS dominates this model completely"},
+    {"watch": "Omega Speedmaster", "best_factory": "ZF", "alt_factory": "OM", "tier": "Top", "notes": "ZF closest to retail movement feel"},
+    {"watch": "Cartier Santos", "best_factory": "GF / BV", "alt_factory": "—", "tier": "Top", "notes": "GF best for medium; BV best for large"},
+    {"watch": "Patek Nautilus 5711", "best_factory": "PPF / 3KF", "alt_factory": "—", "tier": "Top", "notes": "PPF best dial; 3KF best movement"},
+    {"watch": "IWC Portugieser", "best_factory": "ZF", "alt_factory": "YL", "tier": "Mid", "notes": "ZF good value; reliable everyday piece"},
+]
+
 # 2026 upcoming hype releases driving future demand
 UPCOMING_RELEASES: list[dict] = [
     {"item": "Travis Scott x AJ1 Low OG 'Pink Pack'", "brand": "Jordan / Travis Scott", "release": "Summer 2026", "hype": "very_high", "category": "Sneakers"},
@@ -112,6 +199,14 @@ UPCOMING_RELEASES: list[dict] = [
     {"item": "Nike SB Dunk Low (new collabs)", "brand": "Nike SB", "release": "Ongoing 2026", "hype": "high", "category": "Sneakers"},
     {"item": "Caitlin Clark Nike Signature", "brand": "Nike", "release": "2026", "hype": "moderate", "category": "Sneakers"},
     {"item": "Nike LD-1000 Retro ('70s revival)", "brand": "Nike", "release": "Spring 2026", "hype": "moderate", "category": "Sneakers"},
+    # Watches & jewelry releases driving demand
+    {"item": "Rolex GMT-Master II (new colorways)", "brand": "Rolex", "release": "Watches & Wonders 2026", "hype": "very_high", "category": "Watches"},
+    {"item": "Cartier Santos (refreshed sizes)", "brand": "Cartier", "release": "2026", "hype": "high", "category": "Watches"},
+    {"item": "Omega Speedmaster (new editions)", "brand": "Omega", "release": "2026", "hype": "high", "category": "Watches"},
+    {"item": "Chrome Hearts x Matty Boy Collection", "brand": "Chrome Hearts", "release": "Ongoing 2026", "hype": "high", "category": "Jewelry"},
+    {"item": "Van Cleef Holiday Alhambra", "brand": "Van Cleef & Arpels", "release": "Fall 2026", "hype": "high", "category": "Jewelry"},
+    {"item": "Hermès Avalon (new colorways)", "brand": "Hermès", "release": "Spring 2026", "hype": "moderate", "category": "Home Decor"},
+    {"item": "Baccarat Rouge 540 (Extrait restock)", "brand": "MFK", "release": "2026", "hype": "high", "category": "Fragrance"},
 ]
 
 # Subreddit community metrics
@@ -125,6 +220,11 @@ SUBREDDIT_STATS: list[dict] = [
     {"subreddit": "r/CloseToRetail", "members": 85_000, "signal_weight": 1.3, "focus": "Near-1:1 quality reps", "top_brands": "Jordan, Dunk, Yeezy"},
     {"subreddit": "r/WeidianWarriors", "members": 65_000, "signal_weight": 1.1, "focus": "Weidian finds/deals", "top_brands": "Budget picks, various"},
     {"subreddit": "r/1688Reps", "members": 45_000, "signal_weight": 1.2, "focus": "1688 bulk/budget", "top_brands": "Basics, bags, accessories"},
+    {"subreddit": "r/RepTime", "members": 600_000, "signal_weight": 1.5, "focus": "Replica watches", "top_brands": "Rolex, Omega, AP, Cartier, Patek"},
+    {"subreddit": "r/ChinaTime", "members": 180_000, "signal_weight": 1.2, "focus": "Budget watches", "top_brands": "Rolex, Omega, Cartier (budget tier)"},
+    {"subreddit": "r/RepLadies (Wagoon)", "members": 250_000, "signal_weight": 1.4, "focus": "Luxury bags, jewelry, accessories", "top_brands": "Chanel, Hermès, LV, Dior, Cartier"},
+    {"subreddit": "r/DHgate", "members": 350_000, "signal_weight": 1.2, "focus": "Budget finds across all categories", "top_brands": "Various budget, home decor, accessories"},
+    {"subreddit": "r/DecorReps", "members": 25_000, "signal_weight": 1.0, "focus": "Home decor replicas", "top_brands": "Hermès, Versace, Fendi, Diptyque"},
 ]
 
 # Demand level numeric mapping for scoring
@@ -150,6 +250,11 @@ def get_1688_sales() -> list[dict]:
 def get_batch_guide() -> list[dict]:
     """Return batch quality guide."""
     return BATCH_GUIDE
+
+
+def get_watch_factory_guide() -> list[dict]:
+    """Return watch factory quality guide."""
+    return WATCH_FACTORY_GUIDE
 
 
 def get_upcoming_releases() -> list[dict]:
