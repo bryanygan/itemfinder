@@ -33,6 +33,8 @@ from src.analytics.sales_intel import (
     conversion_tracking, inventory_recommendations,
     monthly_seasonality, size_demand, unmet_demand,
 )
+from src.analytics.live_reddit_hot import cache_status as hot_cache_status
+from src.analytics.live_reddit_hot import get_cached_hot
 from src.analytics.subreddit_deep_dive import (
     all_subreddits_summary,
     available_subreddits,
@@ -969,6 +971,91 @@ def _default_subreddit() -> str:
     return tracked[0] if tracked else "FashionReps"
 
 
+def _hot_threads_section(subreddit: str) -> html.Div:
+    """Render the live 'hot right now' panel for a subreddit, or an
+    empty-state with a refresh hint if the cache is missing/stale."""
+    hot = get_cached_hot(subreddit)
+    status = hot_cache_status()
+    posts = hot.get("posts") or []
+    fetched_at = hot.get("fetched_at") or status.get("fetched_at")
+    stale = hot.get("stale", True)
+
+    if not posts:
+        return html.Div([
+            section(f"Hot Right Now on r/{subreddit}",
+                    "Live Reddit feed — populated by scripts/refresh_live_hot.py."),
+            explainer([
+                html.Strong("No live cache yet. "),
+                "Run ", html.Code("python scripts/refresh_live_hot.py"),
+                " to pull the current hot threads from every tracked subreddit, ",
+                "then reload this page.",
+            ], "amber"),
+        ])
+
+    rows = []
+    for p in posts[:15]:
+        title = p.get("title", "")
+        flair = p.get("flair") or "—"
+        score = p.get("score", 0)
+        comments = p.get("num_comments", 0)
+        link = p.get("permalink", "")
+        created = p.get("created_iso", "")
+        rows.append({
+            "title": title,
+            "flair": flair,
+            "upvotes": score,
+            "comments": comments,
+            "posted": created[:16].replace("T", " ") if created else "",
+            "permalink": link,
+        })
+
+    age_note = ""
+    if fetched_at:
+        try:
+            ts = datetime.fromisoformat(fetched_at.replace("Z", "+00:00"))
+            ts_naive = ts.replace(tzinfo=None) if ts.tzinfo else ts
+            age_h = (datetime.utcnow() - ts_naive).total_seconds() / 3600
+            if age_h < 1:
+                age_note = f"(fetched {int(age_h * 60)} minutes ago)"
+            else:
+                age_note = f"(fetched {age_h:.1f} hours ago)"
+        except Exception:
+            age_note = ""
+
+    stale_banner = None
+    if stale:
+        stale_banner = explainer([
+            html.Strong("Cache is stale. "),
+            f"Last refresh {age_note or '(unknown)'}. ",
+            "Re-run ", html.Code("python scripts/refresh_live_hot.py"),
+            " for fresh data.",
+        ], "amber")
+
+    return html.Div([
+        section(
+            f"Hot Right Now on r/{subreddit}",
+            f"Live Reddit hot threads {age_note}. Click a title to open the post.",
+        ),
+        explainer([
+            html.Strong("Why this matters: "),
+            "Hot threads = what this community is talking about in the last few hours. ",
+            html.Strong("W2C"), " flairs signal active buyers. ",
+            html.Strong("QC"), "/", html.Strong("Review"),
+            " flairs signal recent purchases. Cross-reference with the buy list below ",
+            "to catch rising items before curated trend data updates.",
+        ], "purple"),
+        stale_banner if stale_banner else html.Div(),
+        make_table(pd.DataFrame(rows), {
+            "title": "Thread Title",
+            "flair": "Flair",
+            "upvotes": "Upvotes",
+            "comments": "Comments",
+            "posted": "Posted (UTC)",
+            "permalink": "Link",
+        }, page_size=15),
+    ])
+
+
 def _subreddit_deep_dive(subreddit: str, since: str | None = None):
     """Build the Subreddit Deep Dive tab content for a given subreddit."""
     S = _load_subreddit_data(subreddit, since=since)
@@ -1100,6 +1187,9 @@ def _subreddit_deep_dive(subreddit: str, since: str | None = None):
             html.Strong("0.9x"), " = shipping-agent subs (buyer chatter, weaker intent). ",
             "All recommendations on this page are weighted by this factor.",
         ], "amber"),
+
+        # Live hot threads from Reddit (cached)
+        _hot_threads_section(subreddit),
 
         # Purchase Recommendations — the main show
         section(f"Top Purchases for r/{subreddit}",
