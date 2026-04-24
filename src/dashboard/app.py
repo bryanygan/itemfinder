@@ -33,6 +33,18 @@ from src.analytics.sales_intel import (
     conversion_tracking, inventory_recommendations,
     monthly_seasonality, size_demand, unmet_demand,
 )
+from src.analytics.subreddit_deep_dive import (
+    all_subreddits_summary,
+    available_subreddits,
+    best_items_across_subreddits,
+    cross_subreddit_matrix,
+    get_tracked_subreddits,
+    subreddit_flair_signals,
+    subreddit_kpis,
+    subreddit_purchase_recommendations,
+    subreddit_rising_items,
+    subreddit_top_items,
+)
 from src.analytics.trends import (
     channel_breakdown, daily_volume, top_items_by_intent, trending_items,
 )
@@ -909,6 +921,307 @@ def _market_intel(D):
     ], className="page-content")
 
 
+# ── Subreddit Deep Dive tab ──────────────────────────────────────────────
+
+def _load_subreddit_data(subreddit: str, since: str | None = None) -> dict:
+    """Gather all data for the Subreddit Deep Dive tab for one subreddit."""
+    conn = get_connection()
+    try:
+        data = {
+            "subreddit": subreddit,
+            "kpis": subreddit_kpis(conn, subreddit, since=since),
+            "top": subreddit_top_items(conn, subreddit, limit=25, since=since),
+            "rising": subreddit_rising_items(conn, subreddit, top_n=15, since=since),
+            "flairs": subreddit_flair_signals(conn, subreddit, since=since),
+            "recs": subreddit_purchase_recommendations(
+                conn, subreddit, since=since, limit=25
+            ),
+            "all_subs": all_subreddits_summary(conn, since=since),
+            "matrix": cross_subreddit_matrix(conn, top_items=20, since=since),
+            "best_across": best_items_across_subreddits(conn, top_n=25, since=since),
+            "available": available_subreddits(conn),
+        }
+    finally:
+        conn.close()
+    return data
+
+
+def _subreddit_selector_options() -> list[dict]:
+    """Build subreddit selector options — DB subreddits first, then config-only."""
+    try:
+        conn = get_connection()
+        db_subs = [r["subreddit"] for r in available_subreddits(conn)]
+        conn.close()
+    except Exception:
+        db_subs = []
+    seen = {s.lower() for s in db_subs}
+    config_subs = [s for s in get_tracked_subreddits() if s.lower() not in seen]
+    opts = [{"label": f"r/{s}", "value": s} for s in db_subs]
+    opts += [{"label": f"r/{s} (no data yet)", "value": s} for s in config_subs]
+    return opts
+
+
+def _default_subreddit() -> str:
+    opts = _subreddit_selector_options()
+    if opts:
+        return opts[0]["value"]
+    tracked = get_tracked_subreddits()
+    return tracked[0] if tracked else "FashionReps"
+
+
+def _subreddit_deep_dive(subreddit: str, since: str | None = None):
+    """Build the Subreddit Deep Dive tab content for a given subreddit."""
+    S = _load_subreddit_data(subreddit, since=since)
+    kpis = S["kpis"]
+    top_df = pd.DataFrame(S["top"])
+    rising_df = pd.DataFrame(S["rising"])
+    flairs_df = pd.DataFrame(S["flairs"])
+    recs_df = pd.DataFrame(S["recs"])
+    all_subs_df = pd.DataFrame(S["all_subs"])
+    matrix_df = pd.DataFrame([
+        {"brand": r["brand"], "item": r["item"],
+         "subreddit_count": r["subreddit_count"],
+         "total_mentions": r["total_mentions"],
+         "top_subreddits": r["top_subreddits"]}
+        for r in S["matrix"]
+    ])
+    best_across_df = pd.DataFrame(S["best_across"])
+
+    mentions = kpis.get("mentions") or 0
+    posts = kpis.get("posts") or 0
+    brands = kpis.get("brands") or 0
+    requests = kpis.get("requests") or 0
+    weight = kpis.get("signal_weight") or 0.5
+
+    # ── Charts ──
+    if not top_df.empty:
+        top_fig = px.bar(
+            top_df.head(15).sort_values("mentions", ascending=True),
+            x="mentions", y=top_df.head(15).sort_values("mentions", ascending=True)
+                .apply(lambda r: f"{r['brand'] or '?'} — {r['item'] or '?'}", axis=1),
+            orientation="h",
+            color="requests", color_continuous_scale="Viridis",
+            labels={"x": "Mentions", "y": "", "color": "Requests"},
+        )
+    else:
+        top_fig = empty_fig()
+
+    if not rising_df.empty:
+        rising_fig = px.bar(
+            rising_df.sort_values("velocity", ascending=True),
+            x="velocity", y=rising_df.sort_values("velocity", ascending=True)
+                .apply(lambda r: f"{r['brand']} — {r['item']}", axis=1),
+            orientation="h",
+            color="velocity",
+            color_continuous_scale=[[0, "#ef4444"], [0.5, "#f59e0b"], [1, "#22c55e"]],
+            labels={"x": "Velocity", "y": ""},
+        )
+    else:
+        rising_fig = empty_fig()
+
+    if not flairs_df.empty:
+        flair_fig = px.bar(
+            flairs_df.head(12), x="flair", y="posts",
+            color="avg_score", color_continuous_scale="Viridis",
+            labels={"posts": "Posts", "flair": "Flair", "avg_score": "Avg Upvotes"},
+        )
+    else:
+        flair_fig = empty_fig()
+
+    if not recs_df.empty:
+        rec_bar_df = recs_df.head(15).copy()
+        rec_bar_df["label"] = rec_bar_df.apply(
+            lambda r: f"{r['brand']} — {r['item']}", axis=1
+        )
+        rec_bar_df = rec_bar_df.sort_values("combined_score", ascending=True)
+        recs_fig = px.bar(
+            rec_bar_df, x="combined_score", y="label", orientation="h",
+            color="combined_score",
+            color_continuous_scale=[[0, "#ef4444"], [0.5, "#f59e0b"], [1, "#22c55e"]],
+            labels={"combined_score": "Opportunity Score", "label": ""},
+        )
+    else:
+        recs_fig = empty_fig()
+
+    if not all_subs_df.empty:
+        subs_fig = px.bar(
+            all_subs_df.head(15).sort_values("mentions", ascending=True),
+            x="mentions", y="subreddit", orientation="h",
+            color="signal_weight",
+            color_continuous_scale=[[0, "#f59e0b"], [0.5, "#3b82f6"], [1, "#22c55e"]],
+            labels={"mentions": "Mentions", "subreddit": "",
+                    "signal_weight": "Signal Weight"},
+        )
+    else:
+        subs_fig = empty_fig()
+
+    return html.Div([
+        explainer([
+            html.Strong("Subreddit Deep Dive. "),
+            "Pick a community to see what's hot ", html.Strong("inside that specific sub"),
+            ". Every subreddit has a different audience — r/FashionReps leans streetwear, ",
+            "r/Repsneakers is sneakerheads, r/DesignerReps is luxury. This page surfaces the ",
+            "items that community is buying, asking for, and regretting ", html.Strong("right now"),
+            ", then ranks purchase recommendations using that sub's own demand signal weighted ",
+            "against Weidian/1688 live sales data and curated external trends.",
+        ]),
+
+        # Selector row
+        html.Div([
+            html.Label("Subreddit:",
+                       style={"color": "#9aa0b2", "marginRight": "10px",
+                               "fontSize": "0.9rem"}),
+            dcc.Dropdown(
+                id="subreddit-selector",
+                options=_subreddit_selector_options(),
+                value=subreddit,
+                clearable=False,
+                style={"width": "260px", "backgroundColor": "#252836",
+                       "color": "#e8eaed", "borderColor": "#2d3044",
+                       "display": "inline-block"},
+            ),
+        ], style={"display": "flex", "alignItems": "center",
+                   "gap": "10px", "marginBottom": "16px"}),
+
+        # KPIs
+        html.Div([
+            kpi(f"r/{subreddit}", "Community", C_PURPLE),
+            kpi(posts, "Posts with Mentions", C_CYAN),
+            kpi(mentions, "Product Mentions", C_GREEN),
+            kpi(brands, "Unique Brands", C_AMBER),
+            kpi(requests, "Buy Requests", C_BLUE),
+            kpi(f"{weight:.2f}x", "Signal Weight", C_RED),
+        ], className="kpi-row"),
+        explainer([
+            html.Strong("Signal Weight"), " is how reliable this sub's demand signal is. ",
+            "Weights come from subreddit focus and community size. ",
+            html.Strong("1.5x"),
+            " = high-signal flagship communities (FashionReps, Repsneakers, DesignerReps). ",
+            html.Strong("0.9x"), " = shipping-agent subs (buyer chatter, weaker intent). ",
+            "All recommendations on this page are weighted by this factor.",
+        ], "amber"),
+
+        # Purchase Recommendations — the main show
+        section(f"Top Purchases for r/{subreddit}",
+                "Items ranked by this community's demand × external trend × live sales. "
+                "Click any purchase link to view the Weidian/Yupoo listing."),
+        explainer([
+            html.Strong("Scoring: "),
+            "Combined score = 0.55 × (community demand × signal weight) + "
+            "0.3 × external Reddit trend score + up to 0.2 × Weidian sales boost. ",
+            html.Strong("BUY NOW"), " (0.85+), ",
+            html.Strong("STRONG BUY"), " (0.70+), ",
+            html.Strong("BUY"), " (0.55+), ",
+            html.Strong("WATCH"), " (0.40+).",
+        ], "green"),
+        chart_card("Top 15 Buy Opportunities for This Community",
+                   "Green = highest opportunity. Hover for exact score.",
+                   dcc.Graph(
+                       figure=style_fig(recs_fig),
+                       config={"displayModeBar": False},
+                       style={"height": "480px"},
+                   )),
+        make_table(recs_df, {
+            "brand": "Brand", "item": "Item",
+            "mentions": "Mentions", "requests": "Requests",
+            "regret": "Regret", "owned": "Owned",
+            "community_score": "Community",
+            "external_score": "External",
+            "weidian_trend": "Weidian",
+            "units_sold_30d": "Units/30d",
+            "combined_score": "Score",
+            "recommendation": "Action",
+            "best_batch": "Best Batch",
+            "price_range": "Price",
+            "purchase_link": "Purchase Link",
+            "purchase_notes": "Notes",
+        }, page_size=15),
+
+        # Most-mentioned + rising
+        section("What's Being Talked About",
+                f"Top items and rising items inside r/{subreddit}."),
+        html.Div([
+            chart_card("Top 15 Items by Mentions",
+                       "Color shows request intensity (buying intent).",
+                       dcc.Graph(
+                           figure=style_fig(top_fig),
+                           config={"displayModeBar": False},
+                           style={"height": "440px"},
+                       )),
+            chart_card("Fastest Rising Items",
+                       "Velocity = (recent mentions − prior) / prior. "
+                       "Green = accelerating demand.",
+                       dcc.Graph(
+                           figure=style_fig(rising_fig),
+                           config={"displayModeBar": False},
+                           style={"height": "440px"},
+                       )),
+        ], className="two-col"),
+
+        # Flair signals
+        section("Flair Distribution — The Strongest Reddit Signal",
+                "Flairs like W2C ('where to cop') and QC are standardized intent markers. "
+                "A high W2C count = buyers are actively searching."),
+        explainer([
+            html.Strong("W2C"), " = Where To Cop (active buyer). ",
+            html.Strong("QC"), " = Quality Check (recent purchase). ",
+            html.Strong("Review"), " = post-purchase satisfaction signal. ",
+            "More W2C posts → more latent demand to capture.",
+        ], "purple"),
+        chart_card("Flair Distribution (Posts by Flair)",
+                   "Color = average upvotes (community engagement).",
+                   dcc.Graph(
+                       figure=style_fig(flair_fig),
+                       config={"displayModeBar": False},
+                       style={"height": "360px"},
+                   )),
+        make_table(flairs_df.head(15), {
+            "flair": "Flair", "posts": "Posts",
+            "avg_score": "Avg Upvotes", "avg_comments": "Avg Comments",
+        }),
+
+        # Cross-sub context
+        section("How This Sub Compares",
+                "Mention volume across all tracked subreddits in the dataset."),
+        chart_card("Mentions by Subreddit (Weighted)",
+                   "Color = each sub's signal weight. Green = most reliable signal.",
+                   dcc.Graph(
+                       figure=style_fig(subs_fig),
+                       config={"displayModeBar": False},
+                       style={"height": "360px"},
+                   )),
+
+        # Cross-community safe bets
+        section("Safest Bets — Items in Demand Across Multiple Subreddits",
+                "Items discussed in many communities are less risky to stock — "
+                "demand isn't isolated to one audience."),
+        explainer([
+            html.Strong("Weighted Score: "),
+            "Sum of (mentions × that sub's signal weight) across every subreddit. ",
+            "High score + high subreddit count = strong cross-community signal.",
+        ], "green"),
+        make_table(best_across_df, {
+            "brand": "Brand", "item": "Item",
+            "subreddit_count": "Subs",
+            "total_mentions": "Total Mentions",
+            "weighted_score": "Weighted Score",
+            "top_subreddits": "Top Subs",
+            "best_batch": "Best Batch",
+            "purchase_link": "Purchase Link",
+            "purchase_notes": "Notes",
+        }, page_size=15),
+
+        section("Cross-Subreddit Demand Matrix",
+                "For the top 20 items, which subreddits are discussing them."),
+        make_table(matrix_df, {
+            "brand": "Brand", "item": "Item",
+            "subreddit_count": "# Subs",
+            "total_mentions": "Total Mentions",
+            "top_subreddits": "Top Subs (mentions)",
+        }, page_size=15),
+    ], className="page-content")
+
+
 # ── Main layout ───────────────────────────────────────────────────────────
 
 # Load initial data (all time) for first render
@@ -956,6 +1269,8 @@ app.layout = html.Div([
                 className="tab", selected_className="tab--selected"),
         dcc.Tab(label="Market Intelligence", children=html.Div(id="market-intel-content"),
                 className="tab", selected_className="tab--selected"),
+        dcc.Tab(label="Subreddit Deep Dive", children=html.Div(id="subreddit-deep-dive-content"),
+                className="tab", selected_className="tab--selected"),
         dcc.Tab(label="What to Stock", children=html.Div(id="stock-content"),
                 className="tab", selected_className="tab--selected"),
         dcc.Tab(label="Customer Insights", children=html.Div(id="customers-content"),
@@ -975,6 +1290,9 @@ app.layout = html.Div([
     # Hidden store for items data (used by search callback)
     dcc.Store(id="items-store"),
 
+    # Current 'since' ISO timestamp, used by the subreddit selector callback
+    dcc.Store(id="since-store"),
+
     html.Div([
         html.P("ZR ItemFinder v1.2 — Data from Discord + Reddit + Weidian + 1688 market intelligence",
                style={"color": "var(--text-muted)", "fontSize": "0.75rem",
@@ -988,6 +1306,7 @@ app.layout = html.Div([
 @callback(
     [Output("overview-content", "children"),
      Output("market-intel-content", "children"),
+     Output("subreddit-deep-dive-content", "children"),
      Output("stock-content", "children"),
      Output("customers-content", "children"),
      Output("explorer-content", "children"),
@@ -999,7 +1318,8 @@ app.layout = html.Div([
      Output("hdr-mentions", "children"),
      Output("hdr-brands", "children"),
      Output("items-store", "data"),
-     Output("hdr-platform", "children")],
+     Output("hdr-platform", "children"),
+     Output("since-store", "data")],
     [Input("timeframe-dropdown", "value"),
      Input("platform-selector", "value")],
 )
@@ -1013,6 +1333,7 @@ def update_dashboard(days, platform):
     return [
         _overview(D),
         _market_intel(D),
+        _subreddit_deep_dive(_default_subreddit(), since=since),
         _stock(D),
         _customers(D),
         _explorer(D),
@@ -1025,7 +1346,22 @@ def update_dashboard(days, platform):
         str(len(D["brands"])),
         items_df.to_dict("records") if not items_df.empty else [],
         D["platform_label"],
+        since,
     ]
+
+
+# ── Subreddit selector callback ──────────────────────────────────────────
+
+@callback(
+    Output("subreddit-deep-dive-content", "children", allow_duplicate=True),
+    [Input("subreddit-selector", "value"),
+     Input("since-store", "data")],
+    prevent_initial_call=True,
+)
+def _update_subreddit(subreddit, since):
+    if not subreddit:
+        subreddit = _default_subreddit()
+    return _subreddit_deep_dive(subreddit, since=since)
 
 
 # ── Item search callback ─────────────────────────────────────────────────
