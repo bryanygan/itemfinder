@@ -33,6 +33,15 @@ from src.analytics.sales_intel import (
     conversion_tracking, inventory_recommendations,
     monthly_seasonality, size_demand, unmet_demand,
 )
+from src.analytics.bulk_buy_roi import (
+    DEFAULT_SHIPPING_RATE_USD_PER_KG,
+    category_summary as roi_category_summary,
+    compute_roi,
+    headline_findings,
+    roi_by_tier,
+    summer_only_picks,
+    summer_picks,
+)
 from src.analytics.live_reddit_hot import cache_status as hot_cache_status
 from src.analytics.live_reddit_hot import get_cached_hot
 from src.analytics.subreddit_deep_dive import (
@@ -1312,6 +1321,413 @@ def _subreddit_deep_dive(subreddit: str, since: str | None = None):
     ], className="page-content")
 
 
+# ── Bulk Buy ROI tab ──────────────────────────────────────────────────────
+
+_ROI_RATE_MARKS = {5: "$5", 10: "$10", 13: "$13", 17: "$17", 22: "$22", 28: "$28"}
+
+_TIER_LABELS = {
+    1: "Tier 1 — Jewelry & Accessories (max ROI/kg)",
+    2: "Tier 2 — Softs (good stackers)",
+    3: "Tier 3 — Mid-weight (margin absorbs weight)",
+    4: "Tier 4 — AVOID for bulk (shipping kills margin)",
+}
+
+
+def _summer_picks_section(rate_per_kg: float = DEFAULT_SHIPPING_RATE_USD_PER_KG):
+    """Summer-2026 section — rendered at the top of the Bulk Buy ROI tab
+    so users see the right-now opportunity before the evergreen list."""
+    strict = summer_only_picks(rate_per_kg, top_n=12)
+    combined = summer_picks(rate_per_kg, top_n=20, include_all_season=True)
+    strict_df = pd.DataFrame(strict)
+    combined_df = pd.DataFrame(combined)
+
+    if not strict_df.empty:
+        top_strict = strict_df.sort_values("profit_per_kg_usd", ascending=True).copy()
+        top_strict["label"] = top_strict.apply(
+            lambda r: f"{r['brand']} — {r['item']}", axis=1
+        )
+        summer_fig = px.bar(
+            top_strict, x="profit_per_kg_usd", y="label",
+            orientation="h", color="category",
+            color_discrete_sequence=[C_AMBER, C_PURPLE, C_CYAN, C_BLUE,
+                                       C_GREEN, C_RED, "#ec4899"],
+            labels={"profit_per_kg_usd": "Profit per kg shipped (USD)",
+                    "label": "", "category": "Category"},
+            custom_data=["weight_g", "units_per_10kg", "total_profit_10kg"],
+        )
+        summer_fig.update_traces(
+            hovertemplate=("<b>%{y}</b><br>"
+                           "Profit/kg: $%{x:.2f}<br>"
+                           "Weight: %{customdata[0]} g<br>"
+                           "Units / 10 kg: %{customdata[1]}<br>"
+                           "10 kg profit: $%{customdata[2]:,.0f}"
+                           "<extra></extra>"),
+        )
+    else:
+        summer_fig = empty_fig()
+
+    total_10kg = (
+        int(strict_df["total_profit_10kg"].max()) if not strict_df.empty else 0
+    )
+    top_summer = strict[0] if strict else None
+    best_summer_name = (
+        f"{top_summer['brand']} {top_summer['item']}" if top_summer else "—"
+    )
+    best_summer_ppkg = top_summer["profit_per_kg_usd"] if top_summer else 0
+
+    return html.Div([
+        section("☀ Summer 2026 Picks — Buy Now, Peak Demand June–August",
+                "Summer-skewed items to stock NOW. Buy window April–May; "
+                "demand peaks June–August. These are filtered from the full "
+                "list to only items whose demand curve is seasonal-summer."),
+        explainer([
+            html.Strong("Why summer matters for bulk buying: "),
+            "Summer items (buckets, caps, tanks, shorts, swim, slides) are ",
+            html.Strong("already lightweight"),
+            " — and their demand spikes 2–3x vs off-season. ",
+            "That stacks two tailwinds on the ROI-per-kg metric. ",
+            "A bucket hat at 110 g with $40 profit/unit = ",
+            html.Strong("$363 profit per kg shipped"),
+            " — beating every winter item and nearly every sneaker on this list.",
+        ], "amber"),
+        html.Div([
+            kpi(len(strict), "Summer-Only Picks", C_AMBER),
+            kpi(f"${best_summer_ppkg:,.0f}",
+                "Best Summer Profit/kg", C_GREEN),
+            kpi(best_summer_name[:28], "Summer Top Pick", C_PURPLE),
+            kpi(f"${total_10kg:,}",
+                "Max 10 kg Summer Profit", C_CYAN),
+        ], className="kpi-row"),
+        chart_card("Summer 2026 picks ranked by profit per kg",
+                   "Only strictly summer-seasonal items. Hover for parcel math.",
+                   dcc.Graph(
+                       figure=style_fig(summer_fig),
+                       config={"displayModeBar": False},
+                       style={"height": "520px"},
+                   )),
+        explainer([
+            html.Strong("Claude's summer strategy: "),
+            html.Br(),
+            "1. ", html.Strong("Anchor with sunglasses"),
+            " — Chrome Hearts and Balenciaga shades are the highest-ceiling "
+            "summer pieces on this list. Peak season demand runs May-August.",
+            html.Br(),
+            "2. ", html.Strong("Load up on buckets and trucker caps"),
+            " — Supreme, Corteiz, Prada buckets + CH trucker caps give you "
+            "30+ units in a 4 kg sub-parcel at 60%+ margin.",
+            html.Br(),
+            "3. ", html.Strong("Stock shorts early (April-May)"),
+            " — Essentials, Sp5der, and Gallery Dept painter shorts are the "
+            "summer 2026 streetwear uniform. Lighter than hoodies, same "
+            "source cost structure.",
+            html.Br(),
+            "4. ", html.Strong("Add tanks and polos"),
+            " — tanks ship 25% lighter than tees at the same resale; polos "
+            "hit the prep-revival 2026 trend with Ralph Lauren 1688 sourcing.",
+            html.Br(),
+            "5. ", html.Strong("Slides are the ONLY footwear worth bulking"),
+            " — Yeezy / Adidas / Balenciaga slides weigh ~540 g vs 1.3 kg "
+            "for a Jordan. 2x unit density makes them viable for summer parcels.",
+            html.Br(),
+            "6. ", html.Strong("Swim shorts are the stealth play"),
+            " — almost zero rep competition. Palm Angels and Versace swim "
+            "shorts at 200 g each let you net $50+/unit with $2.60 shipping.",
+        ], "green"),
+        make_table(strict_df, {
+            "brand": "Brand", "item": "Item", "category": "Cat",
+            "weight_g": "g", "avg_rep_cost": "Cost $", "avg_resell": "Resell $",
+            "unit_shipping_usd": "Ship $", "unit_profit_usd": "Profit $",
+            "margin_pct": "Margin %", "profit_per_kg_usd": "Profit/kg $",
+            "units_per_10kg": "/10kg", "total_profit_10kg": "10kg $",
+            "subreddits": "Top Subs",
+            "purchase_link": "Purchase Link", "notes": "Notes",
+        }, page_size=15),
+        explainer([
+            html.Strong("Ideal summer 10 kg parcel mix: "),
+            "200 × CH silver rings (7 kg) + 20 bucket hats (2.2 kg) + "
+            "4 pairs CH sunglasses (0.7 kg) = ~9.9 kg, ~$15k projected profit at US resale. ",
+            "Or for streetwear focus: 15 pairs of slides (7.8 kg) + 10 bucket hats (1.1 kg) + "
+            "5 Casablanca shirts (1.1 kg) = ~10 kg, ~$1,400 projected profit.",
+        ], "purple"),
+    ])
+
+
+def _bulk_buy_roi_tab(rate_per_kg: float = DEFAULT_SHIPPING_RATE_USD_PER_KG):
+    """Render the Bulk Buy ROI analysis tab at a given shipping rate."""
+    enriched = compute_roi(rate_per_kg)
+    findings = headline_findings(rate_per_kg)
+    cat_df = pd.DataFrame(roi_category_summary(rate_per_kg))
+    by_tier = roi_by_tier(rate_per_kg)
+    winners_df = pd.DataFrame([r for r in enriched if r.get("tier") != 4])
+    avoids_df = pd.DataFrame([r for r in enriched if r.get("tier") == 4])
+
+    # Top-20 profit-per-kg horizontal bar
+    if not winners_df.empty:
+        top_bar_df = winners_df.head(20).copy()
+        top_bar_df["label"] = top_bar_df.apply(
+            lambda r: f"{r['brand']} — {r['item']}", axis=1
+        )
+        top_bar_df = top_bar_df.sort_values("profit_per_kg_usd", ascending=True)
+        top_fig = px.bar(
+            top_bar_df, x="profit_per_kg_usd", y="label", orientation="h",
+            color="category",
+            color_discrete_sequence=[C_GREEN, C_PURPLE, C_CYAN, C_BLUE,
+                                       C_AMBER, C_RED, "#ec4899", "#14b8a6"],
+            labels={"profit_per_kg_usd": "Profit per kg shipped (USD)",
+                    "label": "", "category": "Category"},
+            custom_data=["weight_g", "units_per_10kg", "total_profit_10kg"],
+        )
+        top_fig.update_traces(
+            hovertemplate=("<b>%{y}</b><br>"
+                           "Profit/kg: $%{x:.2f}<br>"
+                           "Weight: %{customdata[0]} g<br>"
+                           "Units in 10 kg parcel: %{customdata[1]}<br>"
+                           "10 kg total profit: $%{customdata[2]:,.0f}"
+                           "<extra></extra>"),
+        )
+    else:
+        top_fig = empty_fig()
+
+    # Category profit-per-kg bar
+    if not cat_df.empty:
+        cat_fig = px.bar(
+            cat_df.sort_values("avg_profit_per_kg", ascending=True),
+            x="avg_profit_per_kg", y="category", orientation="h",
+            color="avg_profit_per_kg",
+            color_continuous_scale=[[0, "#ef4444"], [0.2, "#f59e0b"], [1, "#22c55e"]],
+            labels={"avg_profit_per_kg": "Avg profit/kg (USD)",
+                    "category": "", "avg_weight_g": "Avg weight (g)"},
+            custom_data=["items", "avg_weight_g", "avg_margin_pct"],
+        )
+        cat_fig.update_traces(
+            hovertemplate=("<b>%{y}</b><br>"
+                           "Avg profit/kg: $%{x:.2f}<br>"
+                           "Items: %{customdata[0]}<br>"
+                           "Avg weight: %{customdata[1]:.0f} g<br>"
+                           "Avg margin: %{customdata[2]:.1f}%"
+                           "<extra></extra>"),
+        )
+    else:
+        cat_fig = empty_fig()
+
+    # 10kg parcel simulation — how many dollars come out of a 10kg shipment
+    if not winners_df.empty:
+        parcel_df = winners_df.head(15).copy()
+        parcel_df["label"] = parcel_df.apply(
+            lambda r: f"{r['brand']} — {r['item']}", axis=1
+        )
+        parcel_df = parcel_df.sort_values("total_profit_10kg", ascending=True)
+        parcel_fig = px.bar(
+            parcel_df, x="total_profit_10kg", y="label", orientation="h",
+            color="units_per_10kg",
+            color_continuous_scale=[[0, "#1e3a5f"], [0.5, "#3b82f6"], [1, "#22c55e"]],
+            labels={"total_profit_10kg": "Total profit from a 10 kg parcel (USD)",
+                    "label": "", "units_per_10kg": "Units / 10 kg"},
+        )
+    else:
+        parcel_fig = empty_fig()
+
+    common_cols = {
+        "brand": "Brand", "item": "Item", "category": "Cat",
+        "weight_g": "g", "avg_rep_cost": "Cost $", "avg_resell": "Resell $",
+        "unit_shipping_usd": "Ship $", "unit_profit_usd": "Profit $",
+        "margin_pct": "Margin %", "profit_per_kg_usd": "Profit/kg $",
+        "units_per_10kg": "/10kg", "total_profit_10kg": "10kg $",
+        "purchase_link": "Purchase Link", "notes": "Notes",
+    }
+
+    def tier_table(n: int):
+        df = pd.DataFrame(by_tier.get(n, []))
+        if df.empty:
+            return html.P("_No items in this tier._", style={"color": "#6b7280"})
+        return make_table(df, common_cols, page_size=12)
+
+    return html.Div([
+        explainer([
+            html.Strong("Bulk-Buy ROI — optimized for $" ),
+            html.Strong(f"{rate_per_kg:.0f}", id="roi-rate-inline"),
+            html.Strong("/kg shipping. "),
+            "This page answers a single question: ",
+            html.Strong("at your shipping rate, what makes the most money per kilogram shipped?"),
+            " Sneakers look like winners in Reddit trend data but get crushed once shipping is "
+            "priced in. Jewelry, belts, caps, eyewear, wallets, and tees stay light, retain "
+            "80%+ margin after shipping, and let you fit dozens of units in a single consolidated "
+            "parcel. The ranking below reflects real item weights, typical Weidian/Yupoo rep cost, "
+            "and conservative resell ranges in April 2026.",
+        ]),
+
+        # KPI Row
+        html.Div([
+            kpi(f"${findings['best_profit_per_kg']:,.0f}",
+                "Best Profit / kg", C_GREEN),
+            kpi(findings["best_units_per_10kg"],
+                "Units / 10 kg (top pick)", C_BLUE),
+            kpi(f"${findings['best_total_profit_10kg']:,.0f}",
+                "10 kg Parcel Profit (top pick)", C_PURPLE),
+            kpi(findings["winners_tracked"],
+                "Winners Tracked", C_CYAN),
+            kpi(findings["avoids_flagged"],
+                "Avoid-Tier Items", C_RED),
+            kpi(f"${rate_per_kg:.0f}/kg",
+                "Shipping Rate", C_AMBER),
+        ], className="kpi-row"),
+
+        action_box(
+            "Claude's bottom line at $13/kg shipping",
+            [
+                f"Top pick: {findings['best_item']} — ${findings['best_profit_per_kg']:,.0f} "
+                f"profit/kg shipped, {findings['best_units_per_10kg']} units fit in a 10 kg parcel.",
+                "Jewelry category averages ~$1,450/kg profit. Sneakers average ~$37/kg — a 40x gap.",
+                "Chrome Hearts silver (rings, bracelets, necklaces) dominates the ranking thanks "
+                "to sub-100 g weight and $100+ resale prices.",
+                "Designer belts (LV, Off-White) and caps (Corteiz, Trapstar, Supreme) are the "
+                "highest-velocity mid-cost winners.",
+                "AVOID bulk-shipping Jordan 1s, Dunks, Moncler/TNF puffers, and full-size LV "
+                "Keepalls — shipping eats 30–50% of margin.",
+            ],
+        ),
+
+        # Rate slider
+        html.Div([
+            html.Div([
+                html.Label("Shipping rate (USD / kg)",
+                           style={"color": "#9aa0b2", "marginBottom": "6px"}),
+                dcc.Slider(
+                    id="roi-rate-slider",
+                    min=5, max=28, step=1, value=int(rate_per_kg),
+                    marks=_ROI_RATE_MARKS,
+                    tooltip={"placement": "bottom", "always_visible": True},
+                ),
+            ], style={"maxWidth": "640px", "padding": "10px 18px",
+                      "background": "#1a1d27", "border": "1px solid #2d3044",
+                      "borderRadius": "10px", "marginBottom": "20px"}),
+        ]),
+
+        # ── Summer 2026 section ─────────────────────────────────────────
+        _summer_picks_section(rate_per_kg),
+
+        # Top bar
+        section("Top 20 Picks by Profit per Kilogram Shipped",
+                "Longer bar = more dollars made per kg of shipping consumed. "
+                "Hover for 10 kg parcel projections."),
+        chart_card("Profit per kg (USD) — colored by category",
+                   "Jewelry and accessories dominate. Sneakers are excluded from "
+                   "this chart (see AVOID tier below).",
+                   dcc.Graph(
+                       figure=style_fig(top_fig),
+                       config={"displayModeBar": False},
+                       style={"height": "620px"},
+                   )),
+
+        # 10 kg parcel sim
+        section("10 kg Parcel Profit Simulator",
+                "Assuming a single consolidated 10 kg parcel of one item at "
+                "a time — what's the net profit after shipping?"),
+        chart_card("Total profit from a 10 kg parcel by item",
+                   "Color intensity = units that fit. Green = the bulk-buy sweet spot.",
+                   dcc.Graph(
+                       figure=style_fig(parcel_fig),
+                       config={"displayModeBar": False},
+                       style={"height": "520px"},
+                   )),
+
+        # Category summary
+        section("Category Averages — Where the Margin Lives",
+                "Average profit-per-kg and margin % across each category."),
+        chart_card("Average profit per kg by category",
+                   "Jewelry > Eyewear > Accessories > Socks > Tops. "
+                   "Sneakers and Outerwear are at the bottom because weight and "
+                   "volumetric penalty eat the margin.",
+                   dcc.Graph(
+                       figure=style_fig(cat_fig),
+                       config={"displayModeBar": False},
+                       style={"height": "360px"},
+                   )),
+        make_table(cat_df, {
+            "category": "Category", "items": "Items",
+            "avg_profit_per_kg": "Avg Profit/kg $",
+            "avg_margin_pct": "Avg Margin %",
+            "avg_weight_g": "Avg Weight (g)",
+        }),
+
+        # Tiered breakdown
+        section("Tier 1 — Jewelry & Accessories",
+                "Sub-300 g items with 60–95% margin. The core bulk-buy portfolio."),
+        explainer([
+            html.Strong("Strategy: "),
+            "Anchor every parcel with Chrome Hearts silver and LV belts. ",
+            "Add caps and sunglasses as fillers. ",
+            "A 2 kg parcel of assorted Tier-1 items can clear $500–800 profit easily.",
+        ], "green"),
+        tier_table(1),
+
+        section("Tier 2 — Softs (tees, socks, shorts)",
+                "200–300 g each, stackable flat, lower absolute margin but "
+                "great unit velocity."),
+        explainer([
+            html.Strong("Strategy: "),
+            "Use softs to fill remaining space in a Tier-1-anchored parcel. ",
+            "Essentials + Sp5der + Gallery Dept tees move fastest. ",
+            "Socks give the best units-per-kg if you sell in 3-packs.",
+        ], "amber"),
+        tier_table(2),
+
+        section("Tier 3 — Mid-weight (hoodies, shorts)",
+                "400–550 g each — still workable if margin is there."),
+        explainer([
+            html.Strong("Strategy: "),
+            "Only include hoodies if they're Essentials or Sp5der (strong rep demand). ",
+            "Vacuum-bag to cut volumetric weight by ~15%. ",
+            "Cap at 4–6 hoodies per 10 kg parcel to leave room for Tier-1 anchors.",
+        ], "amber"),
+        tier_table(3),
+
+        section("Tier 4 — AVOID for bulk shipping",
+                "These items look great in Reddit demand data, but the $/kg "
+                "economics are brutal."),
+        explainer([
+            html.Strong("Why these fail the ROI test: "),
+            "Sneakers weigh 1.2–1.5 kg each with volumetric penalty from the box "
+            "(1.35x) — shipping eats $18–22 per pair. "
+            "Puffers have a 1.3x volumetric penalty because insulation traps air. "
+            "Large bags (LV Keepall) are hollow — enormous volumetric weight. "
+            "Stick to single-unit drop-shipping or domestic retail arbitrage for these, "
+            "never bulk air freight.",
+        ], "red"),
+        make_table(avoids_df, {
+            "brand": "Brand", "item": "Item",
+            "weight_g": "Weight (g)", "avg_rep_cost": "Cost $",
+            "avg_resell": "Resell $", "unit_shipping_usd": "Ship $",
+            "unit_profit_usd": "Profit $", "margin_pct": "Margin %",
+            "profit_per_kg_usd": "Profit/kg $",
+            "notes": "Why Avoid",
+        }, page_size=10),
+
+        # Strategy commentary
+        section("How I Computed These Numbers",
+                "Methodology — so you can sanity-check my math."),
+        explainer([
+            html.Strong("Billable weight: "),
+            "(item weight in grams × category volumetric multiplier) ÷ 1000. ",
+            "Multipliers: Jewelry 1.0x, Accessories 1.0x, Eyewear 1.05x, Tops 1.05x, "
+            "Hoodies 1.15x, Outerwear 1.3x, Sneakers 1.35x, Bags 1.25x. ",
+            html.Br(), html.Strong("Unit shipping: "),
+            "billable_kg × shipping rate. ",
+            html.Br(), html.Strong("Unit profit: "),
+            "avg_resell − avg_rep_cost − unit_shipping. ",
+            html.Br(), html.Strong("Profit per kg shipped: "),
+            "unit_profit ÷ billable_kg. This is the metric that ranks everything. ",
+            html.Br(), html.Strong("10 kg parcel projection: "),
+            "floor(10 ÷ billable_kg) × unit_profit. ",
+            html.Br(), html.Strong("Data sources: "),
+            "Weights from measured comparable items. Rep costs from Weidian/Yupoo "
+            "observations (April 2026). Resell ranges conservative US streetwear "
+            "aftermarket (Depop, Grailed, Instagram). Purchase links cross-referenced "
+            "from src/analytics/market_intel.py.",
+        ]),
+    ], className="page-content")
+
+
 # ── Main layout ───────────────────────────────────────────────────────────
 
 # Load initial data (all time) for first render
@@ -1361,6 +1777,8 @@ app.layout = html.Div([
                 className="tab", selected_className="tab--selected"),
         dcc.Tab(label="Subreddit Deep Dive", children=html.Div(id="subreddit-deep-dive-content"),
                 className="tab", selected_className="tab--selected"),
+        dcc.Tab(label="Bulk Buy ROI", children=html.Div(id="bulk-buy-roi-content"),
+                className="tab", selected_className="tab--selected"),
         dcc.Tab(label="What to Stock", children=html.Div(id="stock-content"),
                 className="tab", selected_className="tab--selected"),
         dcc.Tab(label="Customer Insights", children=html.Div(id="customers-content"),
@@ -1397,6 +1815,7 @@ app.layout = html.Div([
     [Output("overview-content", "children"),
      Output("market-intel-content", "children"),
      Output("subreddit-deep-dive-content", "children"),
+     Output("bulk-buy-roi-content", "children"),
      Output("stock-content", "children"),
      Output("customers-content", "children"),
      Output("explorer-content", "children"),
@@ -1424,6 +1843,7 @@ def update_dashboard(days, platform):
         _overview(D),
         _market_intel(D),
         _subreddit_deep_dive(_default_subreddit(), since=since),
+        _bulk_buy_roi_tab(DEFAULT_SHIPPING_RATE_USD_PER_KG),
         _stock(D),
         _customers(D),
         _explorer(D),
@@ -1438,6 +1858,17 @@ def update_dashboard(days, platform):
         D["platform_label"],
         since,
     ]
+
+
+# ── Bulk Buy ROI rate-slider callback ────────────────────────────────────
+
+@callback(
+    Output("bulk-buy-roi-content", "children", allow_duplicate=True),
+    [Input("roi-rate-slider", "value")],
+    prevent_initial_call=True,
+)
+def _update_roi(rate):
+    return _bulk_buy_roi_tab(float(rate or DEFAULT_SHIPPING_RATE_USD_PER_KG))
 
 
 # ── Subreddit selector callback ──────────────────────────────────────────
