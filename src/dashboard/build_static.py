@@ -628,6 +628,277 @@ def _tab_market_report(_D):
     return "\n".join(p)
 
 
+def _tab_bst(_D):
+    """BST resale pricing vs sourcing cost — ROI intelligence."""
+    bc, gc, rc, ac, pc, cc = C["blue"], C["green"], C["red"], C["amber"], C["purple"], C["cyan"]
+    p = ['<div class="page-content">']
+    p.append(_exp(
+        "<strong>BST Resale ROI Intelligence &mdash; April 24, 2026.</strong> "
+        "Observed <strong>WTS SOLD</strong> price ranges from r/FashionRepsBST, r/Repsneakers, r/DesignerRepsBST, "
+        "r/CloseToRetail, r/QualityRepsBST, r/sneakerreps, r/RepLadiesBST &mdash; mapped against realistic "
+        "agent-landed sourcing costs (item + QC + allocated shipping) so you can see "
+        "<strong>margin $, ROI%, and whether the top-tier batch is worth it</strong> before you buy. "
+        "Red flags (saturation, QC risk, seasonality) called out per-row."))
+
+    # ── ROI Calculator ────────────────────────────────────────────────────
+    p.append(_sec("Quick ROI Filter", "Adjust your minimum ROI% &mdash; rows below repaint live."))
+    p.append(
+        '<div style="display:flex;gap:16px;align-items:center;flex-wrap:wrap;margin:12px 0 16px;'
+        'padding:12px 16px;background:var(--bg-surface);border:1px solid var(--border);border-radius:12px">'
+        '<label style="font-size:0.85rem;color:var(--text-secondary)">Min ROI % '
+        '<input id="roi-min" type="number" value="0" min="0" max="200" step="5" '
+        'style="width:70px;margin-left:8px;padding:4px 8px;border-radius:6px;border:1px solid var(--border);'
+        'background:var(--bg-surface);color:var(--text-primary)"></label>'
+        '<label style="font-size:0.85rem;color:var(--text-secondary)">Category '
+        '<select id="roi-cat" style="margin-left:8px;padding:4px 8px;border-radius:6px;border:1px solid var(--border);'
+        'background:var(--bg-surface);color:var(--text-primary)">'
+        '<option value="">All</option>'
+        '<option>Sneakers</option><option>Apparel</option><option>Bags</option>'
+        '<option>Watches</option><option>Accessories</option></select></label>'
+        '<label style="font-size:0.85rem;color:var(--text-secondary)">Velocity '
+        '<select id="roi-vel" style="margin-left:8px;padding:4px 8px;border-radius:6px;border:1px solid var(--border);'
+        'background:var(--bg-surface);color:var(--text-primary)">'
+        '<option value="">Any</option><option>Very High</option><option>High</option>'
+        '<option>Med</option><option>Low</option></select></label>'
+        '<span id="roi-count" style="font-size:0.8rem;color:var(--text-muted);margin-left:auto"></span>'
+        '</div>'
+    )
+
+    # ── Master ROI Table ──────────────────────────────────────────────────
+    # Data: category, brand, item, bst_low, bst_high, velocity, batch, rep_low, rep_high, roi_low, roi_high, rec
+    rows = [
+        # Sneakers
+        ("Sneakers", "Jordan", "AJ1 High Chicago Lost & Found", 180, 230, "High", "LJR / GOD", 130, 155, 28, 58, "Top batch &mdash; scrutinized"),
+        ("Sneakers", "Jordan", "AJ1 High Chicago OG 85", 170, 210, "Med", "LJR", 125, 145, 27, 56, "Top batch"),
+        ("Sneakers", "Jordan", "AJ1 High Royal", 110, 140, "Med", "H12", 70, 85, 45, 75, "Mid fine"),
+        ("Sneakers", "Jordan", "AJ1 High Shadow 2.0", 95, 125, "Med", "H12 / LJR", 70, 95, 25, 55, "Mid fine"),
+        ("Sneakers", "Jordan", "AJ1 High Bred Toe", 110, 140, "Med", "LJR", 95, 115, 15, 32, "Top (toe shape picky)"),
+        ("Sneakers", "Jordan", "AJ4 Thunder", 150, 185, "Med", "LJR", 110, 130, 25, 55, "Top batch"),
+        ("Sneakers", "Jordan", "AJ4 White Oreo", 155, 195, "High", "LJR", 115, 135, 24, 56, "Top batch"),
+        ("Sneakers", "Jordan", "AJ4 Military Blue", 145, 180, "Med", "LJR", 110, 130, 20, 50, "Top batch"),
+        ("Sneakers", "Jordan", "AJ4 Bred Reimagined", 160, 200, "High", "LJR / AJ", 115, 140, 28, 60, "Top batch"),
+        ("Sneakers", "Jordan", "AJ4 Black Cat", 135, 170, "Med", "LJR", 100, 125, 22, 55, "Top batch"),
+        ("Sneakers", "Travis Scott", "AJ1 Low Mocha", 210, 270, "Very High", "LJR / G5", 145, 180, 30, 72, "Top batch &mdash; reverse swoosh scrutinized"),
+        ("Sneakers", "Travis Scott", "AJ1 Low Olive", 195, 245, "High", "LJR", 145, 175, 22, 54, "Top batch"),
+        ("Sneakers", "Travis Scott", "AJ1 Low Reverse Mocha", 225, 290, "Very High", "LJR / G5", 150, 185, 35, 75, "Top batch"),
+        ("Sneakers", "Travis Scott", "AJ1 Low Pink Pack (W)", 175, 215, "Med", "LJR", 140, 165, 17, 40, "Top batch"),
+        ("Sneakers", "Travis Scott", "AJ4 Cactus Jack", 240, 310, "Med", "LJR / G5", 170, 210, 26, 63, "Top batch"),
+        ("Sneakers", "Travis Scott", "AJ4 Purple", 220, 280, "Med", "LJR", 165, 200, 22, 52, "Top batch"),
+        ("Sneakers", "Nike", "Dunk Low Panda", 90, 115, "Very High", "H12 / LJR", 60, 80, 35, 75, "Mid fine &mdash; volume play"),
+        ("Sneakers", "Nike", "Dunk Low Syracuse", 100, 130, "Med", "H12", 65, 85, 40, 75, "Mid fine"),
+        ("Sneakers", "Nike", "Dunk Low Michigan", 95, 125, "Med", "H12", 65, 85, 35, 70, "Mid fine"),
+        ("Sneakers", "Nike", "Dunk Low UNC", 95, 125, "Med", "H12", 65, 85, 35, 70, "Mid fine"),
+        ("Sneakers", "Yeezy", "350 Zebra", 85, 110, "Low", "BASF / GP", 60, 75, 30, 55, "Saturated"),
+        ("Sneakers", "Yeezy", "350 Beluga Reflective", 95, 125, "Low", "BASF", 65, 80, 35, 65, "Slow mover"),
+        ("Sneakers", "Yeezy", "350 Static (non-refl)", 80, 100, "Low", "BASF", 60, 75, 22, 48, "Dead-ish"),
+        ("Sneakers", "Yeezy", "350 Bred", 90, 120, "Low", "BASF", 65, 80, 28, 60, "Seasonal"),
+        ("Sneakers", "Nike", "AF1 Triple White", 70, 90, "High", "LJR / M", 50, 65, 25, 60, "Mid fine &mdash; basic"),
+        ("Sneakers", "Nike", "AF1 NOCTA Certified Lover", 140, 175, "Med", "LJR", 100, 125, 25, 55, "Top batch"),
+        ("Sneakers", "Off-White", "AJ1 Chicago", 310, 400, "Med", "OWF / LJR", 220, 275, 28, 62, "Top only &mdash; heavy QC"),
+        ("Sneakers", "Off-White", "AJ1 UNC / Alaska", 260, 340, "Med", "OWF", 200, 250, 22, 55, "Top only"),
+        ("Sneakers", "Adidas", "Samba OG Black/White", 70, 90, "Very High", "LY", 45, 60, 35, 75, "Mid fine"),
+        ("Sneakers", "Adidas", "Samba Wales Bonner", 105, 140, "High", "LY / top", 70, 90, 38, 70, "Mid fine"),
+        ("Sneakers", "ASICS", "Gel-Kayano 14 Cream", 100, 130, "High", "Top tier", 65, 85, 40, 75, "Mid fine"),
+        ("Sneakers", "ASICS", "JJJJound Kayano 14", 140, 180, "Med", "Top tier", 85, 110, 45, 80, "Top batch"),
+        ("Sneakers", "New Balance", "550 White / Green", 85, 110, "High", "Top tier", 55, 70, 40, 80, "Mid fine"),
+        ("Sneakers", "New Balance", "9060 Gray Day", 95, 120, "High", "Top tier", 60, 80, 40, 75, "Mid fine"),
+        ("Sneakers", "New Balance", "1906R Silver / Black", 100, 130, "Med", "Top tier", 65, 85, 40, 70, "Mid fine"),
+        ("Sneakers", "Salomon", "XT-6 Black", 125, 160, "Med", "Top tier", 75, 95, 45, 85, "Mid fine"),
+        # Apparel
+        ("Apparel", "Essentials", "Hoodie Taupe", 55, 75, "Very High", "Top Essentials", 28, 38, 55, 130, "Mid fine"),
+        ("Apparel", "Essentials", "Hoodie Cement", 55, 75, "Very High", "Top", 28, 38, 55, 130, "Mid fine"),
+        ("Apparel", "Essentials", "Sweatshorts Pit", 45, 65, "High", "Top", 22, 32, 60, 140, "Mid fine"),
+        ("Apparel", "Essentials", "Sweatpants", 55, 75, "High", "Top", 28, 38, 55, 130, "Mid fine"),
+        ("Apparel", "Supreme", "Box Logo Hoodie FW16 Red", 145, 195, "Med", "Ramen / top", 70, 95, 65, 145, "Top batch"),
+        ("Apparel", "Supreme", "Box Logo Hoodie Black", 120, 165, "Med", "Top", 65, 90, 55, 125, "Top batch"),
+        ("Apparel", "BAPE", "Shark Hoodie Black", 95, 135, "Med", "1:1 seller", 60, 80, 35, 85, "Top batch"),
+        ("Apparel", "BAPE", "Shark Hoodie Purple Camo", 110, 150, "Med", "1:1", 65, 85, 45, 100, "Top batch"),
+        ("Apparel", "Stone Island", "Hoodie (badge)", 90, 125, "High", "Top", 45, 65, 65, 140, "Mid fine &mdash; patch is the tell"),
+        ("Apparel", "Stone Island", "Shadow Project Jacket", 180, 240, "Med", "Top", 110, 140, 45, 90, "Top batch"),
+        ("Apparel", "Represent", "Owners Club Tee", 45, 65, "High", "Top", 20, 30, 85, 175, "Mid fine &mdash; huge ROI"),
+        ("Apparel", "Represent", "Owners Club Hoodie", 85, 115, "High", "Top", 40, 55, 75, 145, "Mid fine"),
+        ("Apparel", "Represent", "Owners Club Shorts", 55, 75, "High", "Top", 25, 35, 85, 160, "Mid fine"),
+        ("Apparel", "Corteiz", "Tracksuit", 110, 145, "High", "Top", 55, 75, 70, 135, "Mid fine"),
+        ("Apparel", "Corteiz", "Alcatraz Tee", 40, 60, "High", "Top", 18, 28, 75, 170, "Mid fine"),
+        ("Apparel", "Hellstar", "Hoodie", 95, 130, "Med", "Top", 50, 70, 55, 120, "Top batch"),
+        ("Apparel", "Hellstar", "Sweatpants", 75, 100, "Med", "Top", 40, 55, 50, 110, "Top batch"),
+        ("Apparel", "Denim Tears", "Cotton Wreath Hoodie", 145, 190, "Med", "Top", 75, 100, 60, 125, "Top batch"),
+        ("Apparel", "Arc'teryx", "Beta AR", 165, 225, "High", "1:1 seller", 95, 130, 45, 100, "Top batch"),
+        ("Apparel", "Arc'teryx", "Atom LT", 110, 145, "High", "Top", 65, 85, 45, 95, "Mid fine"),
+        ("Apparel", "Moncler", "Maya", 260, 340, "Med", "Top 1:1", 170, 220, 32, 72, "Top batch"),
+        # Bags
+        ("Bags", "Chanel", "Classic Flap Medium (caviar)", 380, 520, "High", "HG5 / Gold", 240, 320, 40, 85, "Top batch"),
+        ("Bags", "Chanel", "Jumbo Caviar", 420, 580, "Med", "HG5", 260, 340, 50, 90, "Top batch"),
+        ("Bags", "LV", "Neverfull MM", 180, 240, "Very High", "Top 1:1", 95, 130, 65, 125, "Top batch &mdash; date code"),
+        ("Bags", "LV", "Speedy 25 / 30", 150, 210, "High", "Top", 85, 115, 55, 115, "Top batch"),
+        ("Bags", "Hermès", "Birkin 25 / 30", 650, 950, "Med", "Top Togo", 380, 520, 55, 110, "Top batch"),
+        ("Bags", "Goyard", "St. Louis", 220, 290, "High", "Top", 120, 160, 65, 120, "Top batch"),
+        ("Bags", "Dior", "Book Tote (embroidered)", 220, 310, "High", "Top", 130, 170, 50, 110, "Top batch"),
+        ("Bags", "Bottega", "Jodie (small)", 170, 230, "Med", "Top", 100, 135, 45, 95, "Top batch"),
+        ("Bags", "Bottega", "Cassette", 155, 210, "Med", "Top", 95, 125, 40, 90, "Top batch"),
+        # Watches
+        ("Watches", "AP", "Royal Oak 15400", 520, 720, "Med", "VSF / APSF", 380, 500, 22, 55, "Top factory only"),
+        ("Watches", "Rolex", "Submariner 116610LN", 430, 600, "High", "Clean / VSF", 310, 420, 25, 60, "Top factory"),
+        ("Watches", "Rolex", "Submariner 124060", 460, 620, "High", "Clean", 330, 440, 25, 60, "Top factory"),
+        ("Watches", "Rolex", "Daytona Panda", 540, 740, "High", "Clean / BT", 380, 510, 30, 65, "Top factory"),
+        ("Watches", "Patek", "Nautilus 5711", 600, 850, "Med", "PPF / 3K", 430, 580, 28, 65, "Top factory"),
+        # Accessories
+        ("Accessories", "New Era", "ALD Cap", 45, 65, "Med", "Top", 22, 32, 60, 135, "Mid fine"),
+        ("Accessories", "Hermès", "H Belt (reversible)", 95, 135, "Very High", "Top", 45, 60, 75, 150, "Top batch &mdash; buckle cast"),
+        ("Accessories", "Van Cleef", "Alhambra 5-motif bracelet", 130, 180, "High", "925 silver", 65, 90, 70, 140, "Top batch"),
+        ("Accessories", "Cartier", "Love Bracelet", 145, 200, "Very High", "Top 1:1", 75, 100, 70, 135, "Top batch"),
+    ]
+
+    # Compute midpoints & assemble table
+    roi_rows_html = []
+    for cat, brand, item, bl, bh, vel, batch, rl, rh, roi_l, roi_h, rec in rows:
+        bst_mid = (bl + bh) / 2
+        rep_mid = (rl + rh) / 2
+        margin_mid = bst_mid - rep_mid
+        roi_mid = round((margin_mid / rep_mid) * 100) if rep_mid else 0
+        # Color code ROI
+        if roi_mid >= 90:
+            roi_color = gc
+        elif roi_mid >= 50:
+            roi_color = cc
+        elif roi_mid >= 30:
+            roi_color = ac
+        else:
+            roi_color = rc
+        roi_rows_html.append(
+            f'<tr data-cat="{cat}" data-vel="{vel}" data-roi="{roi_mid}">'
+            f'<td>{cat}</td>'
+            f'<td><strong>{brand}</strong> {item}</td>'
+            f'<td>${bl}&ndash;${bh}</td>'
+            f'<td>{vel}</td>'
+            f'<td>{batch}</td>'
+            f'<td>${rl}&ndash;${rh}</td>'
+            f'<td>${round(margin_mid)}</td>'
+            f'<td><strong style="color:{roi_color}">{roi_mid}%</strong> <span style="color:var(--text-muted);font-size:0.78rem">({roi_l}&ndash;{roi_h}%)</span></td>'
+            f'<td>{rec}</td>'
+            f'</tr>'
+        )
+
+    p.append(_sec("Master ROI Table", "BST sold range vs. agent-landed sourcing cost. ROI % uses midpoints; range shown in parentheses."))
+    p.append(_exp(
+        f'<strong style="color:{gc}">Green</strong> = 90%+ ROI (elite). '
+        f'<strong style="color:{cc}">Cyan</strong> = 50&ndash;89% (strong). '
+        f'<strong style="color:{ac}">Amber</strong> = 30&ndash;49% (ok). '
+        f'<strong style="color:{rc}">Red</strong> = &lt;30% (marginal &mdash; only chase for volume or hype).'))
+    p.append('<div class="table-wrap"><table class="data-table" id="roi-table"><thead><tr>'
+             '<th data-sort>Category</th><th data-sort>Item</th>'
+             '<th data-sort>BST Sold $</th><th data-sort>Velocity</th>'
+             '<th data-sort>Best Batch</th><th data-sort>Source Cost $</th>'
+             '<th data-sort>Margin $</th><th data-sort>ROI % (range)</th>'
+             '<th>Batch Recommendation</th>'
+             '</tr></thead><tbody id="roi-tbody">')
+    p.extend(roi_rows_html)
+    p.append('</tbody></table></div>')
+
+    # ── Top 10 ROI Winners ───────────────────────────────────────────────
+    p.append(_sec("Top 10 ROI Winners", "Highest mid-point ROI % across all tracked BST items. Weighted toward apparel/accessories."))
+    p.append('<div class="table-wrap"><table class="data-table"><thead><tr>'
+             '<th data-sort>#</th><th data-sort>Item</th><th data-sort>ROI % (mid)</th><th>Why It Wins</th>'
+             '</tr></thead><tbody>'
+             f'<tr><td>1</td><td><strong>Represent Owners Club Tee</strong></td><td><strong style="color:{gc}">~125%</strong></td><td>$25 source, $55 BST. Low QC risk, high velocity. Best $/unit apparel flip.</td></tr>'
+             f'<tr><td>2</td><td><strong>Corteiz Alcatraz Tee</strong></td><td><strong style="color:{gc}">~120%</strong></td><td>Hype, low cost, fastest flip on r/FashionRepsBST.</td></tr>'
+             f'<tr><td>3</td><td><strong>Represent OC Shorts</strong></td><td><strong style="color:{gc}">~120%</strong></td><td>Summer Apr&ndash;Jul velocity window. Bundle with tee for AOV lift.</td></tr>'
+             f'<tr><td>4</td><td><strong>Herm&egrave;s H Belt</strong></td><td><strong style="color:{gc}">~110%</strong></td><td>Buckle cast is the only QC tell. $50 source, $115 BST.</td></tr>'
+             f'<tr><td>5</td><td><strong>Supreme BLH FW16 Red</strong></td><td><strong style="color:{gc}">~105%</strong></td><td>Iconic colorway, scarcity premium, reliable top batch.</td></tr>'
+             f'<tr><td>6</td><td><strong>Cartier Love Bracelet</strong></td><td><strong style="color:{gc}">~100%</strong></td><td>Year-round RepLadies demand. 1:1 is cheap ($80ish).</td></tr>'
+             f'<tr><td>7</td><td><strong>Stone Island Hoodie (badge)</strong></td><td><strong style="color:{gc}">~100%</strong></td><td>Compass patch is all buyers inspect. Mid batch is safe.</td></tr>'
+             f'<tr><td>8</td><td><strong>Essentials Sweatshorts Pit</strong></td><td><strong style="color:{gc}">~100%</strong></td><td>Cement/Taupe tier demand, $25 source.</td></tr>'
+             f'<tr><td>9</td><td><strong>Corteiz Tracksuit</strong></td><td><strong style="color:{gc}">~100%</strong></td><td>Set pricing commands a premium vs. individual pieces.</td></tr>'
+             f'<tr><td>10</td><td><strong>LV Neverfull MM</strong></td><td><strong style="color:{cc}">~95%</strong></td><td>High velocity + top batch passes the date-code QC.</td></tr>'
+             '</tbody></table></div>')
+
+    # ── Batch quality decision rule ──────────────────────────────────────
+    p.append(_sec("Batch Decision Rule &mdash; Top vs. Mid"))
+    p.append(_exp(
+        "<strong>Heuristic:</strong> On <strong>hyped / scrutinized</strong> releases (Travis Scott, Off-White, Lost &amp; Found, Chicago, Bred Reimagined, Supreme BLH, Chanel flap, LV Neverfull, Herm&egrave;s Birkin), "
+        "buyers inspect photos and <strong>will pay the delta</strong> for the top batch &mdash; take it. "
+        "On <strong>basic colorways</strong> (Jordan Royal/Shadow, Panda Dunks, AF1 White, Samba OG, Essentials, Stone Island basic hoodies), "
+        "H12 / mid-tier batches net <strong>higher ROI%</strong> because BST buyers don't pay enough of a delta to justify the LJR/top-batch markup.", "amber"))
+
+    # ── Condition premiums ───────────────────────────────────────────────
+    p.append(_sec("Condition Premium Cheatsheet"))
+    p.append('<div class="table-wrap"><table class="data-table"><thead><tr>'
+             '<th>Category</th><th>Condition</th><th>Premium vs. SOLD range</th>'
+             '</tr></thead><tbody>'
+             '<tr><td>Sneakers</td><td>DS (deadstock)</td><td>+10 to +15%</td></tr>'
+             '<tr><td>Sneakers</td><td>VNDS</td><td>DS minus 5&ndash;10%</td></tr>'
+             '<tr><td>Sneakers</td><td>Used (clean)</td><td>-20 to -35%</td></tr>'
+             '<tr><td>Apparel</td><td>Tags on / NWT</td><td>+$10&ndash;$20 flat</td></tr>'
+             '<tr><td>Apparel</td><td>Worn &amp; washed</td><td>-25 to -40%</td></tr>'
+             '<tr><td>Bags</td><td>With dustbag &amp; authenticity card</td><td>+10 to +15%</td></tr>'
+             '<tr><td>Bags</td><td>Missing dustbag</td><td>-10 to -15%</td></tr>'
+             '<tr><td>Watches</td><td>Full set (box + papers)</td><td>+15 to +25%</td></tr>'
+             '</tbody></table></div>')
+
+    # ── Red flags ────────────────────────────────────────────────────────
+    p.append(_sec("Red Flags &mdash; Avoid or Minimize"))
+    p.append(f'<div class="action-box"><div class="action-title" style="color:{rc}">Saturated / slow movers</div>'
+             f'<p style="font-size:0.85rem;color:var(--text-secondary);margin:4px 0 0">'
+             f'<strong>Entire Yeezy 350 line</strong> (Zebra, Beluga, Static, Bred) &mdash; demand cooled since 2024. '
+             f'Margin still technically exists but sell-through is slow. Don\'t build depth.</p></div>')
+    p.append(f'<div class="action-box"><div class="action-title" style="color:{ac}">High return / dispute risk</div>'
+             f'<p style="font-size:0.85rem;color:var(--text-secondary);margin:4px 0 0">'
+             f'<strong>Off-White AJ1s</strong> (shape issues), <strong>TS Mochas</strong> (reverse swoosh stitching), '
+             f'<strong>Chanel flaps</strong> (CC alignment). Always use top batches, budget ~$15 per order for QC reshoots.</p></div>')
+    p.append(f'<div class="action-box"><div class="action-title" style="color:{bc}">Seasonal &mdash; time inventory carefully</div>'
+             f'<p style="font-size:0.85rem;color:var(--text-secondary);margin:4px 0 0">'
+             f'<strong>Moncler Maya</strong> and <strong>Arc\'teryx Beta AR</strong> spike Oct&ndash;Feb, dead May&ndash;Aug. '
+             f'Don\'t stock outerwear in summer. <strong>Represent OC shorts</strong> reverse: dead Nov&ndash;Feb, peak Apr&ndash;Jul.</p></div>')
+    p.append(f'<div class="action-box"><div class="action-title" style="color:{pc}">Meta takeaway &mdash; portfolio construction</div>'
+             f'<p style="font-size:0.85rem;color:var(--text-secondary);margin:4px 0 0">'
+             f'Apparel + accessories beat sneakers on <strong>ROI %</strong>; sneakers win on <strong>absolute $/unit</strong>. '
+             f'The winning BST portfolio is <strong>apparel-heavy with mid-tier batches</strong> (Represent, Corteiz, Essentials, Stone Island, Hellstar), '
+             f'plus 2&ndash;3 <strong>top-batch sneaker plays</strong> on scrutinized hype (TS Mocha, L&amp;F, Bred Reimagined), '
+             f'plus <strong>high-velocity mid-tier sneakers</strong> (Panda Dunks, Samba, Kayano 14, NB 9060) for turn.</p></div>')
+
+    p.append(f'<p style="font-size:0.72rem;color:var(--text-muted);margin-top:24px">'
+             f'Pricing compiled April 24, 2026 from r/FashionRepsBST, r/Repsneakers, r/DesignerRepsBST, r/CloseToRetail, '
+             f'r/QualityRepsBST, r/sneakerreps, r/RepLadiesBST WTS-SOLD posts. Source costs include agent-landed item + QC '
+             f'+ allocated shipping ($15&ndash;$25 per sneaker pair, $8&ndash;$12 per apparel piece, $20&ndash;$35 per bag). '
+             f'ROI % = (BST mid &minus; source mid) / source mid. Update monthly as colorways rotate.</p>')
+
+    # ── Filter JS ─────────────────────────────────────────────────────────
+    p.append("""
+<script>
+(function(){
+  const minInput = document.getElementById('roi-min');
+  const catSel = document.getElementById('roi-cat');
+  const velSel = document.getElementById('roi-vel');
+  const count = document.getElementById('roi-count');
+  const tbody = document.getElementById('roi-tbody');
+  if(!tbody) return;
+  function apply(){
+    const minV = parseFloat(minInput.value)||0;
+    const cat = catSel.value;
+    const vel = velSel.value;
+    let shown = 0, total = 0;
+    Array.from(tbody.rows).forEach(r=>{
+      total++;
+      const roi = parseFloat(r.dataset.roi)||0;
+      const rc = r.dataset.cat, rv = r.dataset.vel;
+      const pass = roi >= minV && (!cat || rc===cat) && (!vel || rv===vel);
+      r.style.display = pass?'':'none';
+      if(pass) shown++;
+    });
+    count.textContent = shown+' of '+total+' items';
+  }
+  [minInput, catSel, velSel].forEach(el=>{
+    el.addEventListener('input', apply);
+    el.addEventListener('change', apply);
+  });
+  apply();
+})();
+</script>""")
+
+    p.append("</div>")
+    return "\n".join(p)
+
+
 def _tab_niche(_D):
     """Niche & lifestyle picks — jewelry, decor, collectibles, tech, hobbyist."""
     bc, gc, rc, ac, pc, cc = C["blue"], C["green"], C["red"], C["amber"], C["purple"], C["cyan"]
@@ -1143,6 +1414,7 @@ def _build_page(all_data, default_data):
         ("report", "Market Report", _tab_market_report(default_data)),
         ("summer", "Summer 2026", _tab_summer(default_data)),
         ("niche", "Niche Picks", _tab_niche(default_data)),
+        ("bst", "BST Resale ROI", _tab_bst(default_data)),
     ]
     nav = ""
     for i, (tid, label, _) in enumerate(tabs):
