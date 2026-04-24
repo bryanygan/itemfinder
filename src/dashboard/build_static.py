@@ -628,6 +628,387 @@ def _tab_market_report(_D):
     return "\n".join(p)
 
 
+def _tab_ops(_D):
+    """Operations playbook — agents, shipping, QC, customs, payments, scams."""
+    bc, gc, rc, ac, pc, cc = C["blue"], C["green"], C["red"], C["amber"], C["purple"], C["cyan"]
+    p = ['<div class="page-content">']
+    p.append(_exp(
+        "<strong>Operations Playbook &mdash; April 24, 2026.</strong> "
+        "Everything that makes the reselling business actually <em>run</em>: agent selection, "
+        "shipping line routing, QC checklists per category, the 2026 customs/tariff landscape "
+        "(US de minimis is <strong>gone</strong>), payment-method risk, scam patterns, "
+        "a release calendar through December, and landed-cost math. "
+        "Reverify monthly &mdash; this space shifts fast."))
+
+    # ── Sub-nav so user can jump within the tab ──────────────────────────
+    p.append(
+        '<nav style="display:flex;flex-wrap:wrap;gap:8px;margin:12px 0 20px;'
+        'padding:12px 16px;background:var(--bg-surface);border:1px solid var(--border);border-radius:12px">'
+        '<a href="#ops-agents" style="font-size:0.8rem;color:var(--text-primary);text-decoration:none;padding:6px 10px;background:rgba(59,130,246,0.12);border-radius:6px">1. Agents</a>'
+        '<a href="#ops-shipping" style="font-size:0.8rem;color:var(--text-primary);text-decoration:none;padding:6px 10px;background:rgba(34,197,94,0.12);border-radius:6px">2. Shipping lines</a>'
+        '<a href="#ops-qc" style="font-size:0.8rem;color:var(--text-primary);text-decoration:none;padding:6px 10px;background:rgba(139,92,246,0.12);border-radius:6px">3. QC checklists</a>'
+        '<a href="#ops-customs" style="font-size:0.8rem;color:var(--text-primary);text-decoration:none;padding:6px 10px;background:rgba(239,68,68,0.12);border-radius:6px">4. Customs / seizure</a>'
+        '<a href="#ops-payments" style="font-size:0.8rem;color:var(--text-primary);text-decoration:none;padding:6px 10px;background:rgba(6,182,212,0.12);border-radius:6px">5. Payments</a>'
+        '<a href="#ops-scams" style="font-size:0.8rem;color:var(--text-primary);text-decoration:none;padding:6px 10px;background:rgba(245,158,11,0.12);border-radius:6px">6. Scams / vetting</a>'
+        '<a href="#ops-calendar" style="font-size:0.8rem;color:var(--text-primary);text-decoration:none;padding:6px 10px;background:rgba(59,130,246,0.12);border-radius:6px">7. Release calendar</a>'
+        '<a href="#ops-tariffs" style="font-size:0.8rem;color:var(--text-primary);text-decoration:none;padding:6px 10px;background:rgba(239,68,68,0.12);border-radius:6px">8. Tariff impact</a>'
+        '</nav>'
+    )
+
+    # ── 1. Agent Comparison ─────────────────────────────────────────────
+    p.append('<div id="ops-agents"></div>')
+    p.append(_sec("1. Agent Comparison Matrix", "Who to use when. Pandabuy is dead &mdash; Kakobuy and Sugargoo have absorbed most of the migration."))
+    p.append('<div class="table-wrap"><table class="data-table"><thead><tr>'
+             '<th data-sort>Agent</th><th data-sort>Commission</th><th data-sort>Free Storage</th>'
+             '<th>Strengths</th><th>Weaknesses</th><th data-sort>Best For</th>'
+             '</tr></thead><tbody>'
+             '<tr><td><strong>Superbuy</strong></td><td>5% (Pro 3%)</td><td>90 days</td>'
+             '<td>Premium UI, 6-angle QC, largest warehouse, English CS, insurance option</td>'
+             '<td>Higher base cost, slower warehouse processing post-2024 growth</td>'
+             '<td>Beginners, high-value bags/watches</td></tr>'
+             '<tr><td><strong>CSSBuy</strong></td><td>0% (line markup)</td><td>90 days</td>'
+             '<td>Watch specialist, r/RepTime #1, direct TD/Clean factory contacts, low total cost</td>'
+             '<td>Clunky UI, Chinese-heavy UX</td>'
+             '<td>Watches (Rolex / AP / PP), experienced reppers</td></tr>'
+             '<tr><td><strong>Sugargoo</strong></td><td>3&ndash;5%</td><td>90 days</td>'
+             '<td>Best balance, strong sneaker pipeline, clean app, stable shipping lines</td>'
+             '<td>QC photos sometimes rushed, occasional finding errors</td>'
+             '<td>Sneakerheads, mid-tier hauls $300&ndash;$800</td></tr>'
+             f'<tr><td><strong style="color:{gc}">Kakobuy</strong></td><td>0% (line markup ~8&ndash;12%)</td><td>90 days</td>'
+             '<td>Fastest-rising post-Pandabuy, strong CN/US lines, crypto payments, affiliate-driven</td>'
+             '<td>Newer = less dispute track record, affiliate spam inflates reviews</td>'
+             '<td>TikTok-funnel buyers, budget haulers</td></tr>'
+             '<tr><td><strong>Allchinabuy (ACB)</strong></td><td>5%</td><td>60 days</td>'
+             '<td>Top RepLadies pick, careful with bags, good lining/hardware QC</td>'
+             '<td>Slower shipping consolidation</td>'
+             '<td>Designer bags, women\'s fashion</td></tr>'
+             '<tr><td><strong>Mulebuy</strong></td><td>0% (line markup)</td><td>60 days</td>'
+             '<td>Fast warehouse 24&ndash;48h, clean UI, crypto-friendly, small-haul efficient</td>'
+             '<td>Smaller line selection</td>'
+             '<td>Single-item buys, quick flips</td></tr>'
+             '<tr><td><strong>Basetao</strong></td><td>6&ndash;8% tiered</td><td>180 days</td>'
+             '<td>Chrome Hearts / jewelry / VCA specialist; authentication-grade QC; factory relationships</td>'
+             '<td>Most expensive, longer QC queue</td>'
+             '<td>Chrome Hearts, VCA, Cartier, high-end jewelry</td></tr>'
+             '<tr><td><strong>Hoobuy</strong></td><td>0% (line markup)</td><td>60 days</td>'
+             '<td>Cheapest landed cost, CNY-denominated</td>'
+             '<td>Budget QC (4 photos), limited CS</td>'
+             '<td>Price-first buyers, disposable apparel</td></tr>'
+             '<tr><td><strong>Hagobuy</strong></td><td>0% (line markup)</td><td>90 days</td>'
+             '<td>2024 entrant, good shipping deals, Kakobuy-adjacent</td>'
+             '<td>Unproven on large disputes</td>'
+             '<td>Buyers chasing promo rates</td></tr>'
+             f'<tr><td><strong style="color:{rc}">Pandabuy</strong></td><td colspan="5"><strong>DEAD.</strong> April 2024 raid, community-blacklisted. Avoid.</td></tr>'
+             '<tr><td><strong>Ponybuy / Lovegobuy / Itaobuy</strong></td><td colspan="5">Minor agents &mdash; niche use only.</td></tr>'
+             '</tbody></table></div>')
+    p.append(_exp(
+        f'<strong>2026 demographic split:</strong> '
+        f'Sugargoo ~35% sneakers, CSSBuy ~60% watches, ACB ~70% bags, Kakobuy ~40% apparel newbies. '
+        f'Match your inventory mix to the agent with the strongest community for that category.', "cyan"))
+
+    # ── 2. Shipping Lines ────────────────────────────────────────────────
+    p.append('<div id="ops-shipping"></div>')
+    p.append(_sec("2. Shipping Line Guide", "Volumetric formula: (L &times; W &times; H cm) / 6000 = volumetric kg. Carriers bill whichever is higher."))
+    p.append(_exp(
+        f'<strong style="color:{ac}">Branded item rule:</strong> Yun Express, CNE, USPS direct, ARAMEX, DPEX, and EMS are your go-to. '
+        f'<strong style="color:{rc}">NEVER use DHL Express or FedEx IP for branded items</strong> &mdash; they X-ray every parcel and seize aggressively.', "amber"))
+    p.append(_sec("US-bound", ""))
+    p.append('<div class="table-wrap"><table class="data-table"><thead><tr>'
+             '<th data-sort>Line</th><th data-sort>$/kg (2026)</th><th data-sort>Speed (days)</th>'
+             '<th data-sort>Sensitivity</th><th>Notes</th>'
+             '</tr></thead><tbody>'
+             f'<tr><td><strong style="color:{gc}">Yun Express (YunJi)</strong></td><td>$5.80&ndash;$7.20</td><td>10&ndash;16</td><td>Low</td><td>Most popular general line. Handoff to USPS. Decent tracking.</td></tr>'
+             '<tr><td><strong>CNE</strong></td><td>$6.00&ndash;$7.50</td><td>8&ndash;14</td><td>Medium</td><td>Fast, reliable, slightly stricter. Avoid electronics/batteries.</td></tr>'
+             f'<tr><td><strong style="color:{gc}">USPS direct</strong></td><td>$9&ndash;$12</td><td>7&ndash;10</td><td>Low</td><td>Allows branded. Low seizure. Premium routing.</td></tr>'
+             f'<tr><td><strong style="color:{rc}">DHL Express</strong></td><td>$11&ndash;$16</td><td>4&ndash;7</td><td>HIGH</td><td>X-ray every parcel. Worst for reps. Only non-branded neutral items.</td></tr>'
+             f'<tr><td><strong style="color:{rc}">FedEx IP</strong></td><td>$10&ndash;$14</td><td>5&ndash;8</td><td>High</td><td>Frequent seizures on branded. Avoid for logos.</td></tr>'
+             '<tr><td><strong>DPEX</strong></td><td>$7&ndash;$9</td><td>9&ndash;14</td><td>Low</td><td>Emerging budget line, decent.</td></tr>'
+             '<tr><td><strong>ARAMEX</strong></td><td>$6.50&ndash;$8</td><td>12&ndash;18</td><td>Low</td><td>Very lax &mdash; good for bags/jewelry. Slow tracking.</td></tr>'
+             '<tr><td><strong>EMS</strong></td><td>$8&ndash;$11</td><td>10&ndash;20</td><td>Low</td><td>Government-backed, handed to USPS.</td></tr>'
+             '</tbody></table></div>')
+
+    p.append(_sec("EU / UK / CA / AU / Asia", ""))
+    p.append('<div class="table-wrap"><table class="data-table"><thead><tr>'
+             '<th data-sort>Region / Line</th><th data-sort>$/kg</th><th data-sort>Speed</th><th>Notes</th>'
+             '</tr></thead><tbody>'
+             '<tr><td><strong>EU &mdash; EUB</strong></td><td>$5.50&ndash;$7</td><td>10&ndash;18d</td><td>Cheapest EU line, low seizure, slow</td></tr>'
+             '<tr><td><strong>EU &mdash; 4PX</strong></td><td>$6&ndash;$8</td><td>8&ndash;14d</td><td>Solid all-rounder</td></tr>'
+             '<tr><td><strong>EU &mdash; DPD</strong></td><td>$7&ndash;$9</td><td>7&ndash;10d</td><td>Fast, strict-ish</td></tr>'
+             '<tr><td><strong>EU &mdash; DHL eCommerce</strong></td><td>$8&ndash;$10</td><td>6&ndash;9d</td><td>Better than DHL Express for reps</td></tr>'
+             '<tr><td><strong>EU &mdash; Colissimo (FR)</strong></td><td>$7.50&ndash;$9</td><td>8&ndash;12d</td><td>France-optimized</td></tr>'
+             '<tr><td><strong>UK &mdash; Yun &rarr; Royal Mail</strong></td><td>$6.50&ndash;$8</td><td>10&ndash;15d</td><td>Low sensitivity. Post-Brexit: VAT at carrier for all orders.</td></tr>'
+             '<tr><td><strong>UK &mdash; DHL eCommerce UK</strong></td><td>$8&ndash;$10</td><td>6&ndash;9d</td><td>Medium sensitivity</td></tr>'
+             '<tr><td><strong>CA &mdash; CNE / Yun</strong></td><td>$6&ndash;$8</td><td>12&ndash;20d</td><td>CBSA lax on low-value</td></tr>'
+             '<tr><td><strong>AU &mdash; CNE / SAL</strong></td><td>$7&ndash;$9</td><td>10&ndash;18d</td><td>GST applies &gt;AUD$1000 formal entry</td></tr>'
+             '<tr><td><strong>Asia hubs (SG / HK / JP)</strong></td><td>$4&ndash;$6</td><td>5&ndash;10d</td><td>Minimal customs</td></tr>'
+             '</tbody></table></div>')
+    p.append(_exp(
+        f'<strong>Batteries / liquids / electronics:</strong> Only DPEX, ARAMEX, and "sensitive" upgrades handle these (+$1.50/kg surcharge). Never ship via DHL/FedEx.', "blue"))
+
+    # ── 3. QC Checklists ────────────────────────────────────────────────
+    p.append('<div id="ops-qc"></div>')
+    p.append(_sec("3. QC Checklist by Category", "Exactly what to inspect in QC photos before approving. If you can't see the checkpoint clearly, request a reshoot."))
+
+    p.append(_sec("Sneakers", ""))
+    p.append('<div class="table-wrap"><table class="data-table"><thead><tr>'
+             '<th data-sort>Model</th><th>QC Checkpoints</th>'
+             '</tr></thead><tbody>'
+             '<tr><td><strong>AJ1 High (Travis)</strong></td><td>Reverse swoosh stitching density <strong>8&ndash;10 stitches/cm</strong>; wings logo crisp (no blobbing); toe box domed not pointy; heel tab leather grain matches; Nike Air embossing on insole</td></tr>'
+             '<tr><td><strong>AJ1 High (standard)</strong></td><td>Wings logo clarity, swoosh curvature, toe stitching even, Nike tongue tag font</td></tr>'
+             '<tr><td><strong>AJ4</strong></td><td>Wing eyelets symmetrical L/R; mesh "jordan" pattern not too bright; midsole stitching <strong>~6 stitches/cm</strong>; Flight patch alignment</td></tr>'
+             '<tr><td><strong>Dunk Low</strong></td><td>Heel curve smooth (no flat spot); swoosh tapers correctly at tail; panel overlap stitching even; insole branding sharp</td></tr>'
+             '<tr><td><strong>Yeezy 350</strong></td><td>Primeknit pattern matches batch ref; boost density (press-test photo); <strong>SPLY stripe alignment + height</strong>; heel tab text font</td></tr>'
+             '<tr><td><strong>AF1</strong></td><td>Toe box round not pointy; <strong>4 rows of perforations evenly spaced</strong>; Nike tongue tag stitching</td></tr>'
+             '<tr><td><strong>Samba OG</strong></td><td>T-toe curve natural; 3-stripe width consistent; heel gold stamp crisp; gum sole translucency</td></tr>'
+             '<tr><td><strong>ASICS Gel-Kayano 14</strong></td><td>Gel window clarity; Asics Tiger stripe alignment; heel pull tab font; midsole foam density</td></tr>'
+             '<tr><td><strong>NB 550 / 9060</strong></td><td>N logo raised uniformly; suede nap direction; heel tab font; lacing eyelets reinforced</td></tr>'
+             '<tr><td><strong>Salomon XT-6</strong></td><td>Quicklace tension even; mudguard symmetrical; contagrip lug definition</td></tr>'
+             '</tbody></table></div>')
+
+    p.append(_sec("Bags", ""))
+    p.append('<div class="table-wrap"><table class="data-table"><thead><tr>'
+             '<th data-sort>Model</th><th>QC Checkpoints</th>'
+             '</tr></thead><tbody>'
+             '<tr><td><strong>Chanel Classic Flap</strong></td><td><strong>CC interlock perfectly symmetrical</strong> (gap test); caviar grain uniform (no bald spots); quilting diamonds equal size across front; chain weight <strong>~200&ndash;250g</strong>; interior lambskin soft not plasticky; serial sticker font</td></tr>'
+             '<tr><td><strong>LV Neverfull</strong></td><td><strong>Date code format correct</strong> for claimed year/factory (DU/SD/AR codes); tab stitching 5 per side; hardware brass not plated; handle vachetta even; red Pimms interior if MM</td></tr>'
+             '<tr><td><strong>LV Speedy 25/30</strong></td><td>Monogram placement, heat-stamp on leather tab, zipper pull engraving, lock number</td></tr>'
+             '<tr><td><strong>Herm&egrave;s Birkin</strong></td><td>Togo leather pebble depth uniform; saddle stitching <strong>2.5&ndash;3mm even pitch</strong>; gold plating 24k-grade no flaking; Clochette bell rings clean; Sellier flap alignment</td></tr>'
+             '<tr><td><strong>Goyard</strong></td><td>Chevron Y pattern hand-painted irregularity (perfect = fake); hemp serge trim</td></tr>'
+             '<tr><td><strong>Dior Book Tote</strong></td><td>Embroidery density, Oblique pattern alignment, saddle handle stitching</td></tr>'
+             '<tr><td><strong>Bottega Jodie / Cassette</strong></td><td>Intrecciato weave tightness, leather thickness, knot tension on Jodie handle</td></tr>'
+             '</tbody></table></div>')
+
+    p.append(_sec("Apparel", ""))
+    p.append('<div class="table-wrap"><table class="data-table"><thead><tr>'
+             '<th data-sort>Brand</th><th>QC Checkpoints</th>'
+             '</tr></thead><tbody>'
+             '<tr><td><strong>Essentials (FOG)</strong></td><td>Rubber logo <strong>raised not flat</strong>; drawstring aglet metal not plastic; stitching 10+/inch; cotton hand thick <strong>400gsm+</strong></td></tr>'
+             '<tr><td><strong>Stone Island</strong></td><td><strong>Compass badge at 90&deg;, 4cm from sleeve hem</strong>; button stamped "ST.ISLAND"; lining taffeta not poly</td></tr>'
+             '<tr><td><strong>Supreme Box Logo</strong></td><td>Font spacing between letters equal; embroidery density <strong>12k+ stitches</strong>; collar ribbing 2&times;2</td></tr>'
+             '<tr><td><strong>BAPE Shark</strong></td><td>YKK zipper (stamped); eye stitching crisp (no loose threads); <strong>32&ndash;35 teeth on mouth evenly spaced</strong></td></tr>'
+             '<tr><td><strong>Represent Owners Club</strong></td><td>Logo embroidery density; fabric weight; printed tag placement</td></tr>'
+             '<tr><td><strong>Corteiz</strong></td><td>Alcatraz logo clarity; stitch count on print edges; hood cord aglets</td></tr>'
+             '<tr><td><strong>Arc\'teryx</strong></td><td>GORE-TEX label hologram, dead-bird logo embroidery, zipper (YKK AquaGuard); seam taping width</td></tr>'
+             '<tr><td><strong>Moncler Maya</strong></td><td>Down fill loft, arm badge stitching, Laqu&eacute; panels glossy not matte, interior serial label</td></tr>'
+             '</tbody></table></div>')
+
+    p.append(_sec("Watches &amp; Jewelry", ""))
+    p.append('<div class="table-wrap"><table class="data-table"><thead><tr>'
+             '<th data-sort>Piece</th><th>QC Checkpoints</th>'
+             '</tr></thead><tbody>'
+             '<tr><td><strong>Rolex (generic)</strong></td><td>Dial text alignment (Rolex logo centered); hour hand proportions; bezel <strong>120-click unidirectional</strong>; cyclops <strong>2.5&times; magnification</strong>; bracelet links solid not hollow (weigh test)</td></tr>'
+             '<tr><td><strong>AP Royal Oak</strong></td><td><strong>8 hex screws aligned N/S/E/W pattern</strong>; Grande Tapisserie grid <strong>57&times;57 squares</strong>; dial depth 3D not printed</td></tr>'
+             '<tr><td><strong>Patek Nautilus</strong></td><td>Horizontal dial embossing evenness; porthole ears symmetrical; hour markers applied not printed</td></tr>'
+             '<tr><td><strong>Cartier Santos / Tank</strong></td><td>Screw-down bezel pattern; Roman numerals; cabochon crown (Santos)</td></tr>'
+             '<tr><td><strong>VCA Alhambra</strong></td><td>Clover <strong>4-leaf symmetrical</strong>; <strong>20 beads per motif</strong>; MOP iridescence natural not dyed</td></tr>'
+             '<tr><td><strong>Cartier Love</strong></td><td><strong>Screw slots aligned at 12/3/6/9</strong>; "Cartier" engraving depth 0.2mm sharp</td></tr>'
+             '<tr><td><strong>Tiffany Hardwear / Lock</strong></td><td>Stamp &quot;T &amp; Co.&quot; depth; link articulation; clasp click</td></tr>'
+             '<tr><td><strong>Chrome Hearts</strong></td><td>925 stamp depth; cross/dagger edge sharpness; weight (light = fake silver)</td></tr>'
+             '</tbody></table></div>')
+
+    # ── 4. Customs ──────────────────────────────────────────────────────
+    p.append('<div id="ops-customs"></div>')
+    p.append(_sec("4. Customs &amp; Seizure Landscape 2026", "This section changed dramatically in 2025&ndash;26. The old playbook is dead."))
+    p.append(_exp(
+        f'<strong style="color:{rc}">US de minimis is GONE.</strong> '
+        f'Trump admin executive order (Feb 2025) eliminated the $800 de minimis for China-origin goods, effective <strong>May 2, 2025</strong>, '
+        f'extended worldwide <strong>Aug 29, 2025</strong>. As of April 2026, <strong>every package from China faces formal entry + duties</strong>, '
+        f'regardless of value. USPS charges a flat <strong>$100 surcharge OR ad-valorem duty</strong> (Section 301 + MFN = 30&ndash;54% depending on HTS code).', "red"))
+
+    p.append(_sec("Seizure rates by category (April 2026)", ""))
+    p.append('<div class="table-wrap"><table class="data-table"><thead><tr>'
+             '<th data-sort>Category</th><th data-sort>US</th><th data-sort>UK</th><th data-sort>EU</th><th>Notes</th>'
+             '</tr></thead><tbody>'
+             '<tr><td>Apparel logo</td><td>4%</td><td>8%</td><td>6%</td><td>Lowest risk category</td></tr>'
+             '<tr><td>Sneakers</td><td>10%</td><td>12%</td><td>9%</td><td>Loud batches (Travis, OW) higher</td></tr>'
+             '<tr><td>Bags (trademark)</td><td>18%</td><td>15%</td><td>14%</td><td>CC / LV / H heavily flagged</td></tr>'
+             f'<tr><td>Watches</td><td><strong style="color:{rc}">25%</strong></td><td>20%</td><td>22%</td><td>Highest seizure category</td></tr>'
+             '<tr><td>Jewelry (VCA/Cartier)</td><td>15%</td><td>12%</td><td>13%</td><td>Small parcels slip; bracelet boxes flagged</td></tr>'
+             '</tbody></table></div>')
+
+    p.append(_sec("Regional details", ""))
+    p.append('<ul style="font-size:0.88rem;color:var(--text-secondary);line-height:1.6">'
+             '<li><strong>UK HMRC:</strong> Post-Brexit 20% VAT + &pound;135 threshold <strong>removed for business sellers</strong>. Replicas: trademark goods seizure ~15%. Use Yun+Royal Mail with neutral declarations.</li>'
+             '<li><strong>EU:</strong> &euro;150 de minimis <strong>eliminated March 2026</strong> (EU Customs Reform). All parcels now formal entry. VAT + duty at delivery. IOSS helps &lt;&euro;150 items (VAT only).</li>'
+             '<li><strong>AU:</strong> GST on all imports since 2018; formal entry &gt;AUD$1000.</li>'
+             '<li><strong>CA (CBSA):</strong> CAD$20 threshold still holds for personal gifts; CUSMA enforcement tightening 2026.</li>'
+             '</ul>')
+
+    p.append(_exp(
+        f'<strong>Seizure notice (CBP Form 6051D / CP4):</strong> You have <strong>30 days</strong> to abandon, petition, or offer in compromise. '
+        f'Best practice: <strong>abandon</strong> &mdash; signing the form admits nothing, no fine follows in 99% of cases for small personal parcels. '
+        f'<strong style="color:{rc}">Never admit counterfeit in writing.</strong>', "amber"))
+
+    p.append(_exp(
+        f'<strong>Reshippers (Stackry / Shipito / MyUS):</strong> <strong style="color:{rc}">Dead for China&rarr;US</strong> &mdash; rule now targets China-origin regardless of transit. '
+        f'Still works for EU&rarr;US for legitimate resale. Basetao/Superbuy <strong>internal "de-brand" service</strong> (remove logos in warehouse) gaining adoption.', "red"))
+
+    # ── 5. Payments ─────────────────────────────────────────────────────
+    p.append('<div id="ops-payments"></div>')
+    p.append(_sec("5. Payment Methods &amp; Risk"))
+    p.append('<div class="table-wrap"><table class="data-table"><thead><tr>'
+             '<th data-sort>Method</th><th data-sort>Seller Risk</th><th data-sort>Buyer Risk</th>'
+             '<th data-sort>Chargeback Window</th><th>Notes</th>'
+             '</tr></thead><tbody>'
+             f'<tr><td><strong>PayPal G&amp;S</strong></td><td><strong style="color:{rc}">HIGH</strong> &mdash; buyer wins 90% of INR on reps</td><td>Low</td><td>180 days</td><td>Avoid as seller; buyers love it</td></tr>'
+             f'<tr><td><strong>PayPal F&amp;F</strong></td><td>Medium (account freeze)</td><td><strong style="color:{rc}">HIGH</strong> &mdash; zero recourse</td><td>None</td><td>ToS violation; common in BST</td></tr>'
+             f'<tr><td><strong>Zelle</strong></td><td>Low</td><td><strong style="color:{rc}">HIGH</strong></td><td>None</td><td>US banks only; instant</td></tr>'
+             f'<tr><td><strong>CashApp</strong></td><td>Low</td><td><strong style="color:{ac}">HIGH</strong></td><td>Limited</td><td>$7500/week limits</td></tr>'
+             '<tr><td><strong>Venmo</strong></td><td>Medium (PayPal rules)</td><td>Medium</td><td>180d if G&S tagged</td><td>PayPal-owned, same rules</td></tr>'
+             '<tr><td><strong>Apple / Google Pay</strong></td><td>Standard CC chargeback</td><td>Low</td><td>60&ndash;120 days</td><td>Card network rules apply</td></tr>'
+             f'<tr><td><strong style="color:{gc}">Crypto (USDT TRC20)</strong></td><td>None</td><td>HIGH</td><td>Irreversible</td><td><strong>~40% of BST 2026 volume</strong>. Low fees ($1)</td></tr>'
+             '<tr><td><strong>BTC</strong></td><td>None</td><td>HIGH</td><td>Irreversible</td><td>Volatile, higher fees</td></tr>'
+             '<tr><td><strong>Wise</strong></td><td>Medium</td><td>Medium</td><td>Limited</td><td>Good cross-border; flags "rep" memos</td></tr>'
+             '</tbody></table></div>')
+    p.append(_exp(
+        f'<strong>Dispute rates by method (2026):</strong> PayPal G&amp;S ~12&ndash;18%, PayPal F&amp;F ~2%, Crypto ~0%, Zelle ~3%. '
+        f'<strong>Seller defaults:</strong> Require F&amp;F or crypto for new buyers; split 50/50 F&amp;F + G&amp;S for trust-building. '
+        f'Ship with tracking + signature on everything &gt;$200. Record unboxing video. Screenshot all DMs + agreements. '
+        f'<strong style="color:{rc}">Never write &quot;replica&quot; in payment memos</strong> &mdash; use &quot;collectibles&quot; or &quot;used item&quot;.', "green"))
+    p.append(_exp(
+        f'<strong>Chargeback response playbook:</strong> Upload tracking, signature confirmation, full chat log, '
+        f'and unboxing video within <strong>10 days</strong> of dispute notice. Silence = default loss.', "blue"))
+
+    # ── 6. Scams & Vetting ─────────────────────────────────────────────
+    p.append('<div id="ops-scams"></div>')
+    p.append(_sec("6. Scam Patterns &amp; Vetting (2026)"))
+
+    p.append(f'<div class="action-box"><div class="action-title" style="color:{rc}">Buyer-targeting scams</div>'
+             f'<ul style="font-size:0.85rem;color:var(--text-secondary);margin:4px 0 0">'
+             f'<li><strong>Fake agent mirror sites</strong> (sugaargoo.com, kakoobuy.net) &mdash; always check URL letter-by-letter</li>'
+             f'<li><strong>Altered QC photos</strong> (photoshopped defects away) &mdash; request fresh 6-angle pics</li>'
+             f'<li><strong>Bait-and-switch batch</strong> (listed "LJR" ships "OG") &mdash; screenshot product page</li>'
+             f'<li><strong>Pre-order scams</strong> on unreleased batches &mdash; never pay before factory confirms</li>'
+             f'<li><strong>"Your parcel was seized, pay customs to release"</strong> &mdash; always a scam; real CBP never emails for crypto</li>'
+             f'</ul></div>')
+
+    p.append(f'<div class="action-box"><div class="action-title" style="color:{ac}">Seller-targeting scams</div>'
+             f'<ul style="font-size:0.85rem;color:var(--text-secondary);margin:4px 0 0">'
+             f'<li><strong>Chargeback abuse</strong> &mdash; received item, claim INR on PayPal</li>'
+             f'<li><strong>Return-swap fraud</strong> &mdash; ship back fake or empty box</li>'
+             f'<li><strong>Stolen-card buyers</strong> &mdash; high-value, rush-ship, different bill/ship address</li>'
+             f'<li><strong>"Can you invoice my friend"</strong> triangulation</li>'
+             f'</ul></div>')
+
+    p.append(f'<div class="action-box"><div class="action-title" style="color:{gc}">Vetting buyers on BST</div>'
+             f'<ul style="font-size:0.85rem;color:var(--text-secondary);margin:4px 0 0">'
+             f'<li>Flair: <strong>transaction count &ge; 10, account age &ge; 6 months</strong></li>'
+             f'<li>Run username on RepArchive, r/RepArchive DB, Universal Scammer List (USL)</li>'
+             f'<li>Ask for prior trade confirmations</li>'
+             f'<li>Reverse-image-search their QC pics</li>'
+             f'<li><strong>Red flags:</strong> new account, urgency, refuses video call, offers above asking, typo-heavy DMs, wants crypto but only BTC (not USDT)</li>'
+             f'</ul></div>')
+
+    p.append(f'<div class="action-box"><div class="action-title" style="color:{pc}">Vetting sellers / agents</div>'
+             f'<ul style="font-size:0.85rem;color:var(--text-secondary);margin:4px 0 0">'
+             f'<li>Basetao reviews, HQD (Hypereps QC Database), RepArchive seller tags</li>'
+             f'<li>Cross-ref Discord trust networks (RepArchive server, FashionReps Discord)</li>'
+             f'<li>Check agent on official subreddit sidebar</li>'
+             f'</ul></div>')
+
+    p.append(f'<div class="action-box"><div class="action-title" style="color:{cc}">Building BST rep as a seller</div>'
+             f'<ul style="font-size:0.85rem;color:var(--text-secondary);margin:4px 0 0">'
+             f'<li>Start with cheap sales ($20&ndash;$50) to build flair</li>'
+             f'<li>Use mod-confirmed transactions</li>'
+             f'<li>Post quality photos with Reddit username handwritten</li>'
+             f'<li>Respond fast, ship with tracking, update buyer with in-transit pics</li>'
+             f'</ul></div>')
+
+    # ── 7. Release Calendar ─────────────────────────────────────────────
+    p.append('<div id="ops-calendar"></div>')
+    p.append(_sec("7. Release Calendar &mdash; May through December 2026"))
+    p.append('<div class="table-wrap"><table class="data-table"><thead><tr>'
+             '<th data-sort>Month</th><th data-sort>Drop</th><th data-sort>Retail</th><th>Rep Window</th>'
+             '</tr></thead><tbody>'
+             '<tr><td>May 2026</td><td><strong>Travis x AJ1 Low "Pink Pack"</strong> (3 colorways)</td><td>$160</td><td>Reps 3&ndash;5 weeks post-retail</td></tr>'
+             '<tr><td>May 2026</td><td>Nike x sacai LDWaffle 2026</td><td>$180</td><td>4&ndash;6 weeks</td></tr>'
+             '<tr><td>Jun 2026</td><td>AJ3 "True Blue" 2026 retro</td><td>$210</td><td>2&ndash;3 weeks</td></tr>'
+             f'<tr><td>Jun 2026</td><td><strong style="color:{rc}">Dior x AJ1 Low</strong> (rumored)</td><td>$2200</td><td>6&ndash;8 weeks (high demand)</td></tr>'
+             '<tr><td>Jul 2026</td><td><strong>AJ4 "Oxidized Green"</strong></td><td>$225</td><td>3&ndash;4 weeks</td></tr>'
+             '<tr><td>Jul 2026</td><td>AJ1 Low "Vachetta Tan"</td><td>$140</td><td>2&ndash;3 weeks</td></tr>'
+             '<tr><td>Aug 2026</td><td>BTS: Dunk Panda restock, AF1 triple white</td><td>$110&ndash;$120</td><td>In stock</td></tr>'
+             '<tr><td>Aug 2026</td><td>Essentials FW26 drop</td><td>$90&ndash;$140</td><td>2 weeks</td></tr>'
+             '<tr><td>Sep 2026</td><td>Fashion Week: Balenciaga, Rick Owens FW26</td><td>Varies</td><td>4&ndash;8 weeks</td></tr>'
+             '<tr><td>Sep 2026</td><td>AJ11 Low IE 2026</td><td>$200</td><td>3 weeks</td></tr>'
+             '<tr><td>Oct 2026</td><td>AJ1 "Halloween" rumored orange/black</td><td>$180</td><td>3&ndash;4 weeks</td></tr>'
+             '<tr><td>Oct 2026</td><td>Supreme FW26 Box Logo hoodie</td><td>$168</td><td>2 weeks</td></tr>'
+             '<tr><td>Nov 2026</td><td><strong>Black Friday: massive restocks + AJ11 "Gratitude"</strong></td><td>Varies</td><td>In stock</td></tr>'
+             f'<tr><td>Dec 2026</td><td><strong style="color:{rc}">AJ11 "Space Jam" 2026 retro</strong></td><td>$220</td><td>1&ndash;2 weeks (huge demand)</td></tr>'
+             '<tr><td>Dec 2026</td><td>AJ11 "Galaxy" rumored</td><td>$225</td><td>2&ndash;3 weeks</td></tr>'
+             '<tr><td>Dec 2026</td><td>Travis Scott x McDonald\'s holiday collab (rumored)</td><td>TBD</td><td>4+ weeks</td></tr>'
+             '</tbody></table></div>')
+
+    # ── 8. Tariff Impact ────────────────────────────────────────────────
+    p.append('<div id="ops-tariffs"></div>')
+    p.append(_sec("8. Tariff / Policy Impact on Landed Cost"))
+    p.append(_exp(
+        f'<strong>The short version:</strong> Landed cost is up <strong>+30&ndash;50%</strong> vs 2024 because the de minimis exemption is gone in US and EU. '
+        f'You now pay duty on every parcel. Watches/jewelry get hit at ~2&ndash;4% (minimal). '
+        f'Apparel and footwear get slammed at 16&ndash;32% Section 301 + MFN stacked.', "amber"))
+
+    p.append(_sec("Landed cost comparison ($300 bag, 1kg shipping)", ""))
+    p.append('<div class="table-wrap"><table class="data-table"><thead><tr>'
+             '<th>Period</th><th>Item</th><th>Shipping</th><th>Duty</th><th>MPF</th><th>Total</th>'
+             '</tr></thead><tbody>'
+             f'<tr><td>Pre-2025</td><td>$300</td><td>$8</td><td>$0</td><td>$0</td><td><strong style="color:{gc}">$308</strong></td></tr>'
+             f'<tr><td>2026</td><td>$300</td><td>$8</td><td>~$50</td><td>$15</td><td><strong style="color:{rc}">~$373 (+21%)</strong></td></tr>'
+             '</tbody></table></div>')
+
+    p.append(_sec("Section 301 duty rates (key HTS classes)", ""))
+    p.append('<div class="table-wrap"><table class="data-table"><thead><tr>'
+             '<th>Category</th><th>HTS</th><th>Stacked Duty</th>'
+             '</tr></thead><tbody>'
+             '<tr><td>Knit apparel (hoodies, tees)</td><td>HTS 61</td><td>25% Section 301 + 16% MFN = <strong>41%</strong></td></tr>'
+             '<tr><td>Woven apparel (shirts, pants)</td><td>HTS 62</td><td>25% Section 301 + 16% MFN = <strong>41%</strong></td></tr>'
+             '<tr><td>Footwear (leather)</td><td>HTS 64</td><td>25% Section 301 + 8% MFN = <strong>33%</strong></td></tr>'
+             '<tr><td>Footwear (rubber/textile)</td><td>HTS 64</td><td>25% Section 301 + 20% MFN = <strong>45%</strong></td></tr>'
+             '<tr><td>Handbags</td><td>HTS 4202</td><td>25% Section 301 + 7.5% MFN = <strong>32.5%</strong></td></tr>'
+             '<tr><td>Watches</td><td>HTS 91</td><td>7.5% Section 301 + ~3% MFN = <strong>~10%</strong></td></tr>'
+             '<tr><td>Silver jewelry</td><td>HTS 7113</td><td>25% Section 301 + 5% MFN = <strong>30%</strong></td></tr>'
+             '</tbody></table></div>')
+
+    p.append(_sec("Mitigation strategies that still work in 2026", ""))
+    p.append(f'<div class="action-box"><div class="action-title" style="color:{gc}">1. Bulk consolidation + formal entry</div>'
+             f'<p style="font-size:0.85rem;color:var(--text-secondary);margin:4px 0 0">'
+             f'Once you\'re paying duty anyway, <strong>maximize per-shipment to amortize the $27.75 minimum MPF</strong>. '
+             f'One $3000 shipment &gt;&gt; ten $300 shipments on fixed fees.</p></div>')
+    p.append(f'<div class="action-box"><div class="action-title" style="color:{bc}">2. De-branding service</div>'
+             f'<p style="font-size:0.85rem;color:var(--text-secondary);margin:4px 0 0">'
+             f'Basetao / Superbuy offer logo removal in warehouse. Ships as generic &mdash; lower seizure rate AND lower HTS classification. '
+             f'You re-attach logos / tags on your end. ~$3&ndash;$8 per item.</p></div>')
+    p.append(f'<div class="action-box"><div class="action-title" style="color:{pc}">3. Domestic (US-warehoused) reps</div>'
+             f'<p style="font-size:0.85rem;color:var(--text-secondary);margin:4px 0 0">'
+             f'30&ndash;40% premium but <strong>no customs risk</strong> and same-week delivery to BST buyers. '
+             f'For hype releases (TS, OW, L&amp;F) this can net higher final margin despite premium.</p></div>')
+    p.append(f'<div class="action-box"><div class="action-title" style="color:{cc}">4. Group buys</div>'
+             f'<p style="font-size:0.85rem;color:var(--text-secondary);margin:4px 0 0">'
+             f'Split one formal entry across multiple buyers &mdash; one person acts as importer of record, '
+             f'splits duty pro-rata. Reduces per-unit overhead on small hauls.</p></div>')
+    p.append(f'<div class="action-box"><div class="action-title" style="color:{ac}">5. Mexico / CUSMA routing</div>'
+             f'<p style="font-size:0.85rem;color:var(--text-secondary);margin:4px 0 0">'
+             f'Gray-area: China&rarr;MX&rarr;US via CUSMA transformation. Works for some categories, '
+             f'enforcement tightening 2026. Budget for a 15&ndash;20% seizure rate.</p></div>')
+
+    p.append(_sec("Formal declaration thresholds (April 2026)", ""))
+    p.append('<div class="table-wrap"><table class="data-table"><thead><tr>'
+             '<th>Country</th><th>Formal entry threshold</th>'
+             '</tr></thead><tbody>'
+             '<tr><td><strong>US (from China)</strong></td><td><strong>$0 &mdash; all formal</strong></td></tr>'
+             '<tr><td>EU</td><td>&euro;0 &mdash; all formal (post-March 2026)</td></tr>'
+             '<tr><td>UK business sellers</td><td>&pound;0 &mdash; VAT at POS</td></tr>'
+             '<tr><td>Australia</td><td>AUD$1000</td></tr>'
+             '<tr><td>Canada commercial</td><td>CAD$3300</td></tr>'
+             '<tr><td>Canada personal gift</td><td>CAD$20</td></tr>'
+             '</tbody></table></div>')
+
+    p.append(f'<p style="font-size:0.72rem;color:var(--text-muted);margin-top:24px">'
+             f'Compiled April 24, 2026. <strong>Tariff and enforcement landscape shifts monthly</strong> &mdash; reverify before large hauls. '
+             f'Sources: r/FashionReps / r/Repsneakers / r/RepTime sidebars, RepArchive Discord, '
+             f'CBP &amp; HMRC published guidance, agent community threads, Universal Scammer List.</p>')
+    p.append("</div>")
+    return "\n".join(p)
+
+
 def _tab_bst(_D):
     """BST resale pricing vs sourcing cost — ROI intelligence."""
     bc, gc, rc, ac, pc, cc = C["blue"], C["green"], C["red"], C["amber"], C["purple"], C["cyan"]
@@ -1415,6 +1796,7 @@ def _build_page(all_data, default_data):
         ("summer", "Summer 2026", _tab_summer(default_data)),
         ("niche", "Niche Picks", _tab_niche(default_data)),
         ("bst", "BST Resale ROI", _tab_bst(default_data)),
+        ("ops", "Ops Playbook", _tab_ops(default_data)),
     ]
     nav = ""
     for i, (tid, label, _) in enumerate(tabs):
