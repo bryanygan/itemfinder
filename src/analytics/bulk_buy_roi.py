@@ -44,6 +44,11 @@ VOLUMETRIC_MULTIPLIER = {
     "Sneakers": 1.35,     # shoebox = worst-case volumetric
     "Bags": 1.25,         # hollow, variable
     "Denim": 1.1,
+    "Watches": 1.05,      # small box, minimal air
+    "Fragrance": 1.15,    # rigid box + bottle = some air
+    "Electronics": 1.2,   # rigid retail box
+    "Footwear": 1.3,      # sandals/clogs box similar to sneakers
+    "Dresses": 1.1,       # folded fabric, slight bulk
 }
 
 
