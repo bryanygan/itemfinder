@@ -42,6 +42,15 @@ from src.analytics.bulk_buy_roi import (
     summer_only_picks,
     summer_picks,
 )
+from src.analytics.may_2026_picks import (
+    MAY_2026_CATALYSTS,
+    compute_may_roi,
+    get_catalysts as may_get_catalysts,
+    may_category_summary,
+    may_headline,
+    picks_by_catalyst,
+    top_may_picks,
+)
 from src.analytics.live_reddit_hot import cache_status as hot_cache_status
 from src.analytics.live_reddit_hot import get_cached_hot
 from src.analytics.subreddit_deep_dive import (
@@ -1728,6 +1737,310 @@ def _bulk_buy_roi_tab(rate_per_kg: float = DEFAULT_SHIPPING_RATE_USD_PER_KG):
     ], className="page-content")
 
 
+# ── May 2026 Research tab ─────────────────────────────────────────────────
+
+def _catalyst_card(cat: dict) -> html.Div:
+    """Render one catalyst as a styled card."""
+    return html.Div([
+        html.Div(cat["event"], style={
+            "fontSize": "0.95rem", "fontWeight": "700", "color": "#e8eaed",
+            "marginBottom": "4px",
+        }),
+        html.Div(
+            f"{cat['date_start']} → {cat['date_end']}",
+            style={"fontSize": "0.78rem", "color": C_AMBER,
+                   "marginBottom": "6px"},
+        ),
+        html.Div(
+            f"Peak: {cat['peak_date']} • Audience: {cat['audience']}",
+            style={"fontSize": "0.75rem", "color": "#9aa0b2",
+                   "marginBottom": "8px"},
+        ),
+        html.Div(
+            f"Categories: {', '.join(cat['categories'])}",
+            style={"fontSize": "0.78rem", "color": C_CYAN,
+                   "marginBottom": "8px"},
+        ),
+        html.Div(cat["drivers"], style={
+            "fontSize": "0.78rem", "color": "#cbd5e1",
+            "lineHeight": "1.45",
+        }),
+    ], style={
+        "background": "#1a1d27", "border": "1px solid #2d3044",
+        "borderRadius": "10px", "padding": "14px 16px",
+        "minWidth": "300px", "flex": "1 1 320px",
+    })
+
+
+def _catalyst_section(catalyst_substr: str, label: str,
+                      rate: float = DEFAULT_SHIPPING_RATE_USD_PER_KG,
+                      color: str = C_PURPLE) -> html.Div:
+    """Render a section showing top picks for one catalyst."""
+    picks = picks_by_catalyst(catalyst_substr, rate, top_n=8)
+    df = pd.DataFrame(picks)
+    if df.empty:
+        return html.Div()
+    df_sorted = df.sort_values("profit_per_kg_usd", ascending=True).copy()
+    df_sorted["label"] = df_sorted.apply(
+        lambda r: f"{r['brand']} — {r['item']}", axis=1
+    )
+    fig = px.bar(
+        df_sorted, x="profit_per_kg_usd", y="label", orientation="h",
+        color="category",
+        color_discrete_sequence=[C_GREEN, C_PURPLE, C_AMBER, C_CYAN,
+                                   C_BLUE, C_RED, "#ec4899"],
+        labels={"profit_per_kg_usd": "Profit per kg shipped (USD)",
+                "label": "", "category": "Category"},
+        custom_data=["weight_g", "units_per_10kg", "total_profit_10kg"],
+    )
+    fig.update_traces(
+        hovertemplate=("<b>%{y}</b><br>"
+                       "Profit/kg: $%{x:.2f}<br>"
+                       "Weight: %{customdata[0]} g<br>"
+                       "Units / 10 kg: %{customdata[1]}<br>"
+                       "10 kg profit: $%{customdata[2]:,.0f}"
+                       "<extra></extra>"),
+    )
+    return html.Div([
+        section(label,
+                "Items tagged to this catalyst, ranked by profit/kg at the "
+                "current shipping rate."),
+        chart_card("Top picks for this catalyst",
+                   "Click any bar to see hover details. Sorted ascending so the "
+                   "best pick is at the top.",
+                   dcc.Graph(
+                       figure=style_fig(fig),
+                       config={"displayModeBar": False},
+                       style={"height": "380px"},
+                   )),
+        make_table(df, {
+            "brand": "Brand", "item": "Item", "category": "Cat",
+            "weight_g": "g", "avg_rep_cost": "Cost $",
+            "avg_resell": "Resell $", "unit_shipping_usd": "Ship $",
+            "unit_profit_usd": "Profit $", "margin_pct": "Margin %",
+            "profit_per_kg_usd": "Profit/kg $",
+            "units_per_10kg": "/10kg", "total_profit_10kg": "10kg $",
+            "subreddits": "Top Subs",
+            "purchase_link": "Purchase Link", "notes": "Notes",
+        }, page_size=10),
+    ])
+
+
+def _may_2026_tab(rate_per_kg: float = DEFAULT_SHIPPING_RATE_USD_PER_KG):
+    """Render the May 2026 Research tab."""
+    head = may_headline(rate_per_kg)
+    enriched = compute_may_roi(rate_per_kg)
+    top_df = pd.DataFrame([r for r in enriched if r.get("tier") != 4][:20])
+    cat_df = pd.DataFrame(may_category_summary(rate_per_kg))
+
+    # Top picks chart
+    if not top_df.empty:
+        top_sorted = top_df.sort_values("profit_per_kg_usd", ascending=True).copy()
+        top_sorted["label"] = top_sorted.apply(
+            lambda r: f"{r['brand']} — {r['item']}", axis=1
+        )
+        top_fig = px.bar(
+            top_sorted, x="profit_per_kg_usd", y="label", orientation="h",
+            color="category",
+            color_discrete_sequence=[C_GREEN, C_PURPLE, C_AMBER, C_CYAN,
+                                       C_BLUE, C_RED, "#ec4899", "#14b8a6",
+                                       "#f97316", "#a855f7"],
+            labels={"profit_per_kg_usd": "Profit per kg shipped (USD)",
+                    "label": "", "category": "Category"},
+            custom_data=["weight_g", "units_per_10kg", "total_profit_10kg",
+                          "catalyst"],
+        )
+        top_fig.update_traces(
+            hovertemplate=("<b>%{y}</b><br>"
+                           "Profit/kg: $%{x:.2f}<br>"
+                           "Weight: %{customdata[0]} g<br>"
+                           "Units / 10 kg: %{customdata[1]}<br>"
+                           "10 kg profit: $%{customdata[2]:,.0f}<br>"
+                           "Catalyst: %{customdata[3]}"
+                           "<extra></extra>"),
+        )
+    else:
+        top_fig = empty_fig()
+
+    # Category summary chart
+    if not cat_df.empty:
+        cat_fig = px.bar(
+            cat_df.sort_values("avg_profit_per_kg", ascending=True),
+            x="avg_profit_per_kg", y="category", orientation="h",
+            color="avg_profit_per_kg",
+            color_continuous_scale=[[0, "#ef4444"], [0.2, "#f59e0b"], [1, "#22c55e"]],
+            labels={"avg_profit_per_kg": "Avg profit/kg (USD)", "category": ""},
+            custom_data=["items", "avg_weight_g", "avg_margin_pct"],
+        )
+        cat_fig.update_traces(
+            hovertemplate=("<b>%{y}</b><br>"
+                           "Avg profit/kg: $%{x:.2f}<br>"
+                           "Items: %{customdata[0]}<br>"
+                           "Avg weight: %{customdata[1]:.0f} g<br>"
+                           "Avg margin: %{customdata[2]:.1f}%"
+                           "<extra></extra>"),
+        )
+    else:
+        cat_fig = empty_fig()
+
+    return html.Div([
+        explainer([
+            html.Strong("May 2026 — Updated Demand Research. "),
+            "May is a packed month for rep resale: Mother's Day demand "
+            "carries through mid-month, college graduation gifting peaks "
+            "the third week, Memorial Day Weekend opens summer, Cannes "
+            "drives celebrity-led luxury demand, the festival circuit "
+            "warms up, and inventory windows for Father's Day open. ",
+            "Each item below is tagged with the specific catalyst driving "
+            "its May demand and ranked by profit per kg shipped at the "
+            "current shipping rate.",
+        ]),
+
+        # KPI Row
+        html.Div([
+            kpi(head["total_items"], "May Picks Researched", C_CYAN),
+            kpi(head["catalyst_count"], "Catalyst Events", C_AMBER),
+            kpi(f"${head['top_profit_per_kg']:,.0f}",
+                "Top Profit/kg", C_GREEN),
+            kpi(head["top_units_per_10kg"], "Units / 10kg (top)", C_BLUE),
+            kpi(f"${head['top_total_10kg']:,.0f}",
+                "10 kg Parcel (top)", C_PURPLE),
+            kpi(head["top_category"], "Top Category", C_RED),
+        ], className="kpi-row"),
+
+        action_box(
+            "Claude's May 2026 read",
+            [
+                f"Top pick is {head['top_item']} at ${head['top_profit_per_kg']:,.0f}/kg "
+                f"— {head['top_units_per_10kg']} units fit in a 10 kg parcel for "
+                f"~${head['top_total_10kg']:,.0f} projected profit.",
+                "Watches are NEW for May: AP Royal Oak, Patek Nautilus, Rolex Sub, "
+                "Cartier Tank — all 80–190 g, all driven by college graduation gift demand.",
+                "Cartier Love + Juste un Clou bracelets sit just behind VCA Alhambra — "
+                "ride the Mother's Day + grad gift double-up.",
+                "Hermès Oran Sandal is the Memorial Day must-stock — most-requested "
+                "summer sandal in DesignerReps right now.",
+                "Start stocking Tom Ford / Creed Aventus fragrance NOW for Father's "
+                "Day (June 14) — 4-week lead time fits perfectly.",
+                "AirPods Pro 2 reps (80 g, $35+ profit) are the highest-velocity "
+                "electronics gift for grads — DHgate 1:1 Hi-Master version.",
+            ],
+        ),
+
+        # Catalyst calendar
+        section("May 2026 Demand Calendar",
+                "The 6 catalysts driving demand this month. Each card shows the "
+                "active date window, peak date, audience, and what to stock."),
+        html.Div(
+            [_catalyst_card(c) for c in may_get_catalysts()],
+            style={
+                "display": "flex", "flexWrap": "wrap", "gap": "14px",
+                "marginBottom": "20px",
+            },
+        ),
+
+        # Top picks overall
+        section("Top 20 May Picks — Ranked by Profit per kg",
+                "All May items combined, sorted by ROI at the current "
+                "shipping rate. Hover for catalyst tag and parcel math."),
+        chart_card("Top 20 May 2026 picks (profit per kg shipped)",
+                   "Color = category. Jewelry and Watches dominate thanks to "
+                   "small weight + high resale.",
+                   dcc.Graph(
+                       figure=style_fig(top_fig),
+                       config={"displayModeBar": False},
+                       style={"height": "620px"},
+                   )),
+
+        # Category summary
+        section("Category averages for May",
+                "Where the May margin lives — across all 10 categories."),
+        chart_card("Average profit per kg by category (May items only)",
+                   "Jewelry leads ($2,500+/kg avg) thanks to VCA, Cartier, "
+                   "Tiffany picks all under 70 g.",
+                   dcc.Graph(
+                       figure=style_fig(cat_fig),
+                       config={"displayModeBar": False},
+                       style={"height": "360px"},
+                   )),
+        make_table(cat_df, {
+            "category": "Category", "items": "Items",
+            "avg_profit_per_kg": "Avg Profit/kg $",
+            "avg_margin_pct": "Avg Margin %",
+            "avg_weight_g": "Avg Weight (g)",
+        }),
+
+        # Per-catalyst sections
+        _catalyst_section("Mother", "💐 Mother's Day Aftermath Picks",
+                          rate_per_kg, C_PURPLE),
+        _catalyst_section("Graduation", "🎓 Graduation Season Picks",
+                          rate_per_kg, C_BLUE),
+        _catalyst_section("Memorial", "☀ Memorial Day Weekend Picks",
+                          rate_per_kg, C_AMBER),
+        _catalyst_section("Cannes", "🎬 Cannes Halo Picks",
+                          rate_per_kg, C_RED),
+        _catalyst_section("Festival", "🎪 Festival Circuit Picks",
+                          rate_per_kg, C_GREEN),
+        _catalyst_section("Father", "🧔 Father's Day Prep Picks",
+                          rate_per_kg, C_CYAN),
+
+        # Strategy commentary
+        section("How to play May 2026 — Claude's strategic read",
+                "Synthesis across the 6 catalysts and 28 researched items."),
+        explainer([
+            html.Strong("Week 1 (May 4–10) — Build the Mother's Day catch-up: "),
+            "VCA Alhambra, Cartier Love, Tiffany T-Smile, Chanel WOC. ",
+            "Demand from Mother's Day buyers + their downstream networks "
+            "continues 2-3 weeks past the holiday.",
+            html.Br(), html.Br(),
+            html.Strong("Week 2 (May 11–17) — Stock for graduation: "),
+            "AP Royal Oak, Patek Nautilus, Rolex Submariner, Cartier Tank, "
+            "AirPods Pro 2. Peak grad gifting hits May 23 — your inventory "
+            "must be in-hand by May 18 to ship in time.",
+            html.Br(), html.Br(),
+            html.Strong("Week 3 (May 18–24) — Memorial Day blitz: "),
+            "Hermès Oran, Gucci Princetown, Chrome Hearts sunglasses, "
+            "Supreme bucket hats. Memorial Day Weekend (May 23-26) is the "
+            "single biggest pre-summer retail moment. Stock ramped here "
+            "carries through July.",
+            html.Br(), html.Br(),
+            html.Strong("Week 4 (May 25–31) — Father's Day pre-position: "),
+            "Tom Ford Tobacco Vanille, Creed Aventus, Le Labo Santal 33, "
+            "Apple Watch Ultra 2. Father's Day (June 14) needs inventory "
+            "in-hand by June 7 — a 2-3 week shipping lead time means now.",
+            html.Br(), html.Br(),
+            html.Strong("Diversification rule of thumb: "),
+            "A balanced May 10 kg parcel = 60% Tier 1 jewelry/watches (anchors), "
+            "20% summer accessories (caps, sunglasses), 10% festival/streetwear, "
+            "10% fragrance/electronics. Avoid loading more than 30% into any "
+            "single catalyst window — demand can shift faster than expected.",
+        ], "green"),
+
+        # Methodology
+        section("Methodology notes for May 2026",
+                "How I built this list."),
+        explainer([
+            html.Strong("Data sources: "),
+            "Mid-May 2026 Weidian + Yupoo price observations for rep cost ranges. ",
+            "Conservative US aftermarket (Depop, Grailed, Instagram, eBay) for "
+            "resell ranges. Cross-referenced against PURCHASE_LINKS where direct ",
+            "factory recommendations exist (see src/analytics/market_intel.py).",
+            html.Br(), html.Br(),
+            html.Strong("ROI math (same as Bulk Buy ROI tab): "),
+            "billable_kg = (weight_g × category volumetric multiplier) ÷ 1000. ",
+            "unit_shipping = billable_kg × rate. ",
+            "unit_profit = avg_resell − avg_rep_cost − unit_shipping. ",
+            "profit_per_kg = unit_profit ÷ billable_kg. ",
+            "10 kg projection = floor(10 ÷ billable_kg) × unit_profit.",
+            html.Br(), html.Br(),
+            html.Strong("New category multipliers introduced for May: "),
+            "Watches 1.05x (small box, minimal air), Fragrance 1.15x (rigid box + bottle), ",
+            "Electronics 1.2x (rigid retail box), Footwear 1.3x (sandal/clog box), ",
+            "Dresses 1.1x (folded fabric).",
+        ]),
+    ], className="page-content")
+
+
 # ── Main layout ───────────────────────────────────────────────────────────
 
 # Load initial data (all time) for first render
@@ -1779,6 +2092,8 @@ app.layout = html.Div([
                 className="tab", selected_className="tab--selected"),
         dcc.Tab(label="Bulk Buy ROI", children=html.Div(id="bulk-buy-roi-content"),
                 className="tab", selected_className="tab--selected"),
+        dcc.Tab(label="May 2026 Research", children=html.Div(id="may-2026-content"),
+                className="tab", selected_className="tab--selected"),
         dcc.Tab(label="What to Stock", children=html.Div(id="stock-content"),
                 className="tab", selected_className="tab--selected"),
         dcc.Tab(label="Customer Insights", children=html.Div(id="customers-content"),
@@ -1816,6 +2131,7 @@ app.layout = html.Div([
      Output("market-intel-content", "children"),
      Output("subreddit-deep-dive-content", "children"),
      Output("bulk-buy-roi-content", "children"),
+     Output("may-2026-content", "children"),
      Output("stock-content", "children"),
      Output("customers-content", "children"),
      Output("explorer-content", "children"),
@@ -1844,6 +2160,7 @@ def update_dashboard(days, platform):
         _market_intel(D),
         _subreddit_deep_dive(_default_subreddit(), since=since),
         _bulk_buy_roi_tab(DEFAULT_SHIPPING_RATE_USD_PER_KG),
+        _may_2026_tab(DEFAULT_SHIPPING_RATE_USD_PER_KG),
         _stock(D),
         _customers(D),
         _explorer(D),
